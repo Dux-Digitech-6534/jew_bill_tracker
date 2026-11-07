@@ -1,0 +1,30 @@
+{
+ "app": "bill_tracker",
+ "creation": "2026-11-07 13:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "receipt",
+ "icon_type": "Link",
+ "idx": 0,
+ "label": "Bill Tracker",
+ "link_to": "Bill Tracker",
+ "link_type": "Workspace Sidebar",
+ "modified": "2026-11-07 13:00:00.000000",
+ "modified_by": "Administrator",
+ "name": "Bill Tracker",
+ "owner": "Administrator",
+ "restrict_removal": 0,
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Projects Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "standard": 1
+}

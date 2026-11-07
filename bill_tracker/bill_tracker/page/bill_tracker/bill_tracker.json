@@ -1,0 +1,25 @@
+{
+ "creation": "2026-11-07 13:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-11-07 13:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bill Tracker",
+ "name": "bill-tracker",
+ "owner": "Administrator",
+ "page_name": "bill-tracker",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Projects Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "standard": "Yes",
+ "title": "Bill Tracker"
+}

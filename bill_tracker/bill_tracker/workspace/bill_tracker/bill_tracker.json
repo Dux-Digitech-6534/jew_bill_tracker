@@ -1,0 +1,60 @@
+{
+ "app": "bill_tracker",
+ "charts": [],
+ "content": "[{\"id\":\"btHeader\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Bill Tracker</b></span>\",\"col\":12}},{\"id\":\"btShortcutPage\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Open Bill Tracker\",\"col\":3}},{\"id\":\"btShortcutList\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Project Bills\",\"col\":3}}]",
+ "creation": "2026-11-07 13:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "receipt",
+ "idx": 0,
+ "indicator_color": "blue",
+ "is_hidden": 0,
+ "label": "Bill Tracker",
+ "links": [],
+ "modified": "2026-11-07 13:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bill Tracker",
+ "name": "Bill Tracker",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Projects Manager"
+  },
+  {
+   "role": "Accounts User"
+  }
+ ],
+ "sequence_id": 99.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "format": "{}",
+   "label": "Open Bill Tracker",
+   "link_to": "bill-tracker",
+   "stats_filter": "[]",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "format": "{}",
+   "label": "Project Bills",
+   "link_to": "Project Bill",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Bill Tracker",
+ "type": "Workspace"
+}

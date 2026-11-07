@@ -1,0 +1,147 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "PB-.YYYY.-.####",
+ "creation": "2026-11-07 13:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "project",
+  "bill_type",
+  "bill_no",
+  "column_break_bill",
+  "bill_date",
+  "bill_amount",
+  "sanction_section",
+  "sanction_no",
+  "sanction_amount",
+  "column_break_sanction",
+  "sanction_order",
+  "remarks_section",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Project",
+   "options": "Project",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "bill_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Bill Type",
+   "options": "\nRA - Running Account\nPA - Part Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bill_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Bill No",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_bill",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "bill_date",
+   "fieldtype": "Date",
+   "label": "Bill Date"
+  },
+  {
+   "fieldname": "bill_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Bill Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sanction_section",
+   "fieldtype": "Section Break",
+   "label": "Sanction Details"
+  },
+  {
+   "fieldname": "sanction_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Sanction No"
+  },
+  {
+   "fieldname": "sanction_amount",
+   "fieldtype": "Currency",
+   "label": "Sanction Amount"
+  },
+  {
+   "fieldname": "column_break_sanction",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sanction_order",
+   "fieldtype": "Attach",
+   "label": "Sanction Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "remarks_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-11-07 13:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bill Tracker",
+ "name": "Project Bill",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Projects Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts User",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "search_fields": "project,bill_type,bill_no,sanction_no",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
