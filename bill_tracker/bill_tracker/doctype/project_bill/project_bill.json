@@ -13,10 +13,43 @@
   "bill_date",
   "bill_amount",
   "sanction_section",
+  "sanction_authority",
   "sanction_no",
-  "sanction_amount",
+  "sanction_date",
   "column_break_sanction",
+  "package_no",
+  "sanction_amount",
   "sanction_order",
+  "work_section",
+  "work_lines",
+  "calc_section",
+  "base_amount",
+  "gst_rate",
+  "column_break_calc1",
+  "sgst_amount",
+  "cgst_amount",
+  "column_break_calc2",
+  "bill_total",
+  "additions_section",
+  "additions",
+  "additions_total",
+  "deductions_section",
+  "deductions",
+  "deductions_total",
+  "net_section",
+  "gross_total",
+  "net_payable",
+  "net_payable_words",
+  "column_break_net",
+  "net_as_per_order",
+  "net_difference",
+  "progress_section",
+  "contract_value",
+  "work_done_till_date",
+  "previous_payments",
+  "column_break_progress",
+  "balance_work",
+  "claimed_this_bill",
   "remarks_section",
   "remarks"
  ],
@@ -67,28 +100,217 @@
   {
    "fieldname": "sanction_section",
    "fieldtype": "Section Break",
-   "label": "Sanction Details"
+   "label": "Sanction Order"
+  },
+  {
+   "fieldname": "sanction_authority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sanctioning Department",
+   "options": "\nMPUDCL\nJal Nigam\nOther"
   },
   {
    "fieldname": "sanction_no",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Sanction No"
+   "label": "Sanction Order No"
   },
   {
-   "fieldname": "sanction_amount",
-   "fieldtype": "Currency",
-   "label": "Sanction Amount"
+   "fieldname": "sanction_date",
+   "fieldtype": "Date",
+   "label": "Sanction Order Date"
   },
   {
    "fieldname": "column_break_sanction",
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "package_no",
+   "fieldtype": "Data",
+   "label": "Package / Agreement No"
+  },
+  {
+   "description": "Amount the order sanctions for payment (as written in the order).",
+   "fieldname": "sanction_amount",
+   "fieldtype": "Currency",
+   "label": "Sanction Amount"
+  },
+  {
    "fieldname": "sanction_order",
    "fieldtype": "Attach",
    "label": "Sanction Order",
    "reqd": 1
+  },
+  {
+   "fieldname": "work_section",
+   "fieldtype": "Section Break",
+   "label": "Work-wise Breakup (ULB / Particular)"
+  },
+  {
+   "description": "Optional. When lines are entered, the Work Value below is their total.",
+   "fieldname": "work_lines",
+   "fieldtype": "Table",
+   "label": "Work Lines",
+   "options": "Project Bill Work Line"
+  },
+  {
+   "fieldname": "calc_section",
+   "fieldtype": "Section Break",
+   "label": "Payment Calculation"
+  },
+  {
+   "description": "Total of the work lines when they are used, else type it.",
+   "fieldname": "base_amount",
+   "fieldtype": "Currency",
+   "label": "Work Value (before GST)"
+  },
+  {
+   "default": "18",
+   "description": "With a rate, SGST and CGST are worked out (half each). Empty it to type them.",
+   "fieldname": "gst_rate",
+   "fieldtype": "Percent",
+   "label": "GST Rate %"
+  },
+  {
+   "fieldname": "column_break_calc1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sgst_amount",
+   "fieldtype": "Currency",
+   "label": "SGST"
+  },
+  {
+   "fieldname": "cgst_amount",
+   "fieldtype": "Currency",
+   "label": "CGST"
+  },
+  {
+   "fieldname": "column_break_calc2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bill_total",
+   "fieldtype": "Currency",
+   "label": "Bill Total (incl. GST)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "additions_section",
+   "fieldtype": "Section Break",
+   "label": "Additions"
+  },
+  {
+   "description": "e.g. release of an amount withheld in earlier RA bills. A rate (on the Work Value) makes the amount automatic.",
+   "fieldname": "additions",
+   "fieldtype": "Table",
+   "label": "Additions",
+   "options": "Project Bill Adjustment"
+  },
+  {
+   "fieldname": "additions_total",
+   "fieldtype": "Currency",
+   "label": "Total Additions",
+   "read_only": 1
+  },
+  {
+   "fieldname": "deductions_section",
+   "fieldtype": "Section Break",
+   "label": "Deductions"
+  },
+  {
+   "description": "Labour Cess, Retention, TDS ... A rate (on the Work Value) makes the amount automatic; leave it empty to type the amount.",
+   "fieldname": "deductions",
+   "fieldtype": "Table",
+   "label": "Deductions",
+   "options": "Project Bill Adjustment"
+  },
+  {
+   "fieldname": "deductions_total",
+   "fieldtype": "Currency",
+   "label": "Total Deductions",
+   "read_only": 1
+  },
+  {
+   "fieldname": "net_section",
+   "fieldtype": "Section Break",
+   "label": "Net Payable"
+  },
+  {
+   "fieldname": "gross_total",
+   "fieldtype": "Currency",
+   "label": "Gross Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "net_payable",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Net Payable",
+   "read_only": 1
+  },
+  {
+   "fieldname": "net_payable_words",
+   "fieldtype": "Small Text",
+   "label": "Net Payable in Words",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_net",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Type the Net Amount Payable printed on the order to cross-check this calculation.",
+   "fieldname": "net_as_per_order",
+   "fieldtype": "Currency",
+   "label": "Net Payable as per Order"
+  },
+  {
+   "description": "Calculated minus as per order. Zero means they match.",
+   "fieldname": "net_difference",
+   "fieldtype": "Currency",
+   "label": "Difference",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "progress_section",
+   "fieldtype": "Section Break",
+   "label": "Contract & Progress (optional)"
+  },
+  {
+   "fieldname": "contract_value",
+   "fieldtype": "Currency",
+   "label": "Contract Value (after variation)"
+  },
+  {
+   "fieldname": "work_done_till_date",
+   "fieldtype": "Currency",
+   "label": "Work Done till Date"
+  },
+  {
+   "fieldname": "previous_payments",
+   "fieldtype": "Currency",
+   "label": "Previous Bill Payments"
+  },
+  {
+   "fieldname": "column_break_progress",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Work Done till Date minus Previous Bill Payments.",
+   "fieldname": "claimed_this_bill",
+   "fieldtype": "Currency",
+   "label": "Claimed under this Bill",
+   "read_only": 1
+  },
+  {
+   "description": "Contract Value minus Work Done till Date.",
+   "fieldname": "balance_work",
+   "fieldtype": "Currency",
+   "label": "Balance Work",
+   "read_only": 1
   },
   {
    "fieldname": "remarks_section",
@@ -102,7 +324,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-07 13:00:00.000000",
+ "modified": "2026-11-12 15:30:00.000000",
  "modified_by": "Administrator",
  "module": "Bill Tracker",
  "name": "Project Bill",

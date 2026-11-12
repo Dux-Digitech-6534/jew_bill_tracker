@@ -12,12 +12,12 @@
  "idx": 0,
  "indicator_color": "blue",
  "is_hidden": 0,
- "label": "Bill Tracker",
+ "label": "Bill Tracker Home",
  "links": [],
- "modified": "2026-11-07 13:00:00.000000",
+ "modified": "2026-11-12 17:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bill Tracker",
- "name": "Bill Tracker",
+ "name": "Bill Tracker Home",
  "number_cards": [],
  "owner": "Administrator",
  "parent_page": "",
@@ -55,6 +55,6 @@
    "type": "DocType"
   }
  ],
- "title": "Bill Tracker",
+ "title": "Bill Tracker Home",
  "type": "Workspace"
 }
