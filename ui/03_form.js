@@ -363,6 +363,7 @@ Object.assign(App.prototype, {
 	onChange(e) {
 		const el = e.target;
 		if (!el.dataset) return;
+		if (el.dataset.dash) { this.dashDate(el); return; }
 		if (el.dataset.el === 'fileinput' || el.dataset.el === 'camerainput') {
 			const file = el.files && el.files[0];
 			el.value = '';
@@ -432,7 +433,7 @@ Object.assign(App.prototype, {
 			if (req !== this.reqs.pick) return;
 			this._pickRows = rows;
 			list.innerHTML = rows.length
-				? rows.map((r, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-act="pick" data-id="${esc(r.name)}" data-name="${esc(r.project_name)}"><b>${esc(r.project_name)}</b><span>${esc(r.name)}</span></button>`).join('')
+				? rows.map((r, i) => `<button type="button" class="${i === 0 ? 'on' : ''}" data-act="pick" data-id="${esc(r.name)}" data-name="${esc(r.project_name)}"><b>${esc(r.project_name)}</b>${r.name !== r.project_name ? `<span>${esc(r.name)}</span>` : ''}</button>`).join('')
 				: '<div class="none">No project found.</div>';
 		} catch (e) {
 			if (req === this.reqs.pick) list.innerHTML = `<div class="none">${esc(e.message)}</div>`;

@@ -60,7 +60,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Project",
-   "options": "Project",
+   "options": "Site Project",
    "reqd": 1,
    "search_index": 1
   },

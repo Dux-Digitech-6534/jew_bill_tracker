@@ -8,7 +8,8 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
 
 - **Project Bill** DocType (module *Bill Tracker*): Project, Bill Type (RA - Running Account / PA - Part Account),
   Bill No, Bill Date, Bill Amount and the Sanction Order file (PDF or image, mandatory).
-  Numbered `PB-.YYYY.-.####`, track changes on. A Project + Bill Type + Bill No combination can only be entered once.
+  The **Project** is a *Site Project* (doctype of the HSC Master Inhouse app, its name is the project name), so that app must be
+  installed on the site. Numbered `PB-.YYYY.-.####`, track changes on. A Project + Bill Type + Bill No combination can only be entered once.
   System Manager has full access; Projects Manager and Accounts User can read, write and create.
 - **Sanction order details and payment calculation** (MPUDCL "Sanction Order" and Jal Nigam "Summary of RA" style):
   sanctioning department, order no / date, package / agreement no, sanction amount, an optional ULB-wise breakup
@@ -24,6 +25,14 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
   sanction amount, net payable), search and filters, bill detail (sanction order preview, calculation as on the order),
   and the new / edit form with file upload and live calculation. The Frappe form stays available for back-office use.
   API: `bill_tracker/api.py` (`get_context`, `projects`, `list_bills`, `get_bill`, `calculate`, `save_bill`).
+- **Dashboard** (first section of the page, opens by default): one period filter (All time / This financial year / Last 12
+  months / Last 3 months / Custom) scopes everything below it. *Sanction order bills*: bills, bill amount, net payable,
+  deductions, a warning when bills differ from the net printed on the order, net payable by month, by department, top
+  projects, latest bills. *Fund transfer letters* (when `jv_escrow` is installed): letters, credit received, to JEW / TPPL,
+  credit by month, where the credit went (letter 1 split + breakup letters), latest letters. Every chart has a Table view and
+  tooltips; rows open the bill / letter or the saved list filtered to that department / project. Numbers come from
+  `api.get_dashboard` -> `dashboard.py` and respect the user's permissions. `/desk/bill-tracker/bills` and `/letters` open
+  those sections directly.
 - **Fund transfer letters section** inside the Bill Tracker page: when the `jv_escrow` app is installed on the site (and the
   user may read *Escrow Fund Transfer*), the page shows a switch *Sanction order bills | Fund transfer letters*. The second
   section is the TPPL-JEW-JV escrow letters screen (credit amount -> both letters, Generate PDF, Save record, Saved

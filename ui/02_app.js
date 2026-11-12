@@ -18,13 +18,17 @@ class App {
 			detail: { name: '', data: null, error: '', preview: false },
 			form: null,
 			calc: null,
-			section: 'bills', // 'bills' | 'letters' (the Fund transfer letters screen of the jv_escrow app, when installed)
+			section: null, // 'dashboard' | 'bills' | 'letters' (the Fund transfer letters screen of the jv_escrow app, when installed)
+			dash: { period: 'all', from: '', to: '', data: null, loading: false, error: '', views: {} },
 		};
 		this.letters = null;
+		this.billsReady = false;
+		this.dashReady = false;
 		this.stack = ['list'];
-		this.reqs = { list: 0, detail: 0, calc: 0, pick: 0 };
+		this.reqs = { list: 0, detail: 0, calc: 0, pick: 0, dash: 0 };
 		this.loadListSoon = debounce(() => this.loadList(true), 320);
 		this.bind();
+		this.initDash();
 		this.syncTheme();
 		this.boot();
 	}
@@ -44,9 +48,11 @@ class App {
 			<div class="sections" data-el="sections" hidden></div>
 			<div class="tabs-wrap" data-el="tabs" hidden></div>
 			<div data-el="alert"></div>
+			<div class="dash" data-el="dash" hidden></div>
 			<div data-el="view"><div class="loading"><span class="spin"></span> Loading...</div></div>
 			<div data-el="letters" hidden></div>
 		</div>
+		<div class="tip" data-el="tip" role="tooltip" hidden><b data-t="v"></b><span data-t="l"></span><span data-t="s"></span></div>
 		<div class="toast" data-el="toast"></div>
 		<div data-el="overlay"></div></div>`;
 	}
@@ -114,11 +120,8 @@ class App {
 		sessionStorage.removeItem('bt_csrf_retry');
 		this.st.view = 'list';
 		this.renderSections();
-		this.loadList(true); // fills the "Saved bills" count while the form is shown
-		// same pattern as the letters: opens on "New bill"; people who may not create bills land on the saved list
-		if (this.st.ctx.can_create) this.openForm(null);
-		else this.view('list');
-		this.openRequestedSection();
+		this.loadList(true); // fills the "Saved bills" count
+		this.setSection(this.requestedSection());
 	}
 
 	// ---- tabs of the bills section: New bill | Saved bills -------------------------------
@@ -175,28 +178,31 @@ class App {
 		this.openForm(null);
 	}
 
-	// ---- sections: Sanction order bills | Fund transfer letters ------------------------
+	// ---- sections: Dashboard | Sanction order bills | Fund transfer letters ------------------
 	renderSections() {
 		const el = this.$('[data-el=sections]');
 		const esc_ = this.st.ctx && this.st.ctx.escrow;
-		if (!esc_) { el.hidden = true; el.innerHTML = ''; return; }
 		const s = this.st.section;
 		el.hidden = false;
 		el.innerHTML = `<div class="seg" role="tablist" aria-label="Sections">
+			<button type="button" role="tab" data-act="section" data-v="dashboard" aria-pressed="${s === 'dashboard'}">${ic('chart', 15)} Dashboard</button>
 			<button type="button" role="tab" data-act="section" data-v="bills" aria-pressed="${s === 'bills'}">${ic('receipt', 15)} Sanction order bills</button>
-			<button type="button" role="tab" data-act="section" data-v="letters" aria-pressed="${s === 'letters'}">${ic('file', 15)} ${esc(esc_.label || 'Fund transfer letters')}</button></div>`;
+			${esc_ ? `<button type="button" role="tab" data-act="section" data-v="letters" aria-pressed="${s === 'letters'}">${ic('file', 15)} ${esc(esc_.label || 'Fund transfer letters')}</button>` : ''}</div>`;
 	}
 
-	/** /desk/bill-tracker/letters opens the letters section straight away. */
-	openRequestedSection() {
+	/** /desk/bill-tracker opens the dashboard; /desk/bill-tracker/bills and /letters open those sections. */
+	requestedSection() {
 		const r = window.frappe && frappe.get_route && frappe.get_route();
-		if (this.mode === 'desk' && r && r[1] === 'letters' && this.st.ctx.escrow) this.setSection('letters');
+		const want = this.mode === 'desk' && r ? r[1] : '';
+		if (want === 'letters' && this.st.ctx.escrow) return 'letters';
+		if (want === 'bills') return 'bills';
+		return 'dashboard';
 	}
 
 	async setSection(name) {
 		if (name === this.st.section) return;
 		if (name === 'letters' && !(this.st.ctx && this.st.ctx.escrow)) return;
-		if (this.st.view === 'form' && this.st.form && this.st.form.dirty) {
+		if (this.st.section === 'bills' && this.st.view === 'form' && this.st.form && this.st.form.dirty) {
 			const ok = await this.confirmBox('Leave this bill?', 'The details you entered on this bill are not saved yet.', 'Leave', 'Stay');
 			if (!ok) return;
 			this.st.form.dirty = false;
@@ -204,12 +210,26 @@ class App {
 		this.st.section = name;
 		this.renderSections();
 		this.renderTabs();
+		this.$('[data-el=dash]').hidden = name !== 'dashboard';
 		this.$('[data-el=view]').hidden = name !== 'bills';
 		this.$('[data-el=letters]').hidden = name !== 'letters';
 		this.showAlert('');
 		this.setActs();
-		if (name === 'letters') this.showLetters();
-		else if (this.st.view === 'list') this.loadList(true);
+		if (name === 'dashboard') this.showDashboard();
+		else if (name === 'letters') await this.showLetters();
+		else this.ensureBills();
+	}
+
+	/** The bills section is built the first time it is opened: "New bill" tab (or the saved list for users who cannot create). */
+	ensureBills() {
+		if (!this.billsReady) {
+			this.billsReady = true;
+			this.stack = ['list'];
+			if (this.st.ctx.can_create) this.openForm(null);
+			else this.view('list');
+		} else if (this.st.view === 'list') {
+			this.loadList(true);
+		}
 	}
 
 	async showLetters() {
@@ -241,7 +261,7 @@ class App {
 	}
 
 	errorCard(msg, retry) {
-		const act = retry === 'letters' ? 'retry-letters' : 'retry';
+		const act = retry === 'letters' ? 'retry-letters' : retry === 'dash' ? 'dash-retry' : 'retry';
 		return `<div class="card"><span class="accent"></span><div class="empty"><span class="e-ic" style="background:var(--err-bg);color:var(--err)">${ic('alert', 22)}</span>
 			<b>Could not open</b>${esc(msg)}${retry ? `<div style="margin-top:14px"><button class="btn btn-secondary" data-act="${act}">${ic('refresh', 15)} Try again</button></div>` : ''}</div></div>`;
 	}
@@ -249,6 +269,7 @@ class App {
 	setActs() {
 		const c = this.st.ctx || {};
 		const el = this.$('[data-el=acts]');
+		if (this.st.section === 'dashboard') { el.innerHTML = `<button class="btn btn-ghost" data-act="dash-retry" title="Refresh">${ic('refresh', 16)}</button>`; return; }
 		if (this.st.view !== 'list' || this.st.section !== 'bills') { el.innerHTML = ''; return; }
 		el.innerHTML = `<button class="btn btn-ghost" data-act="refresh" title="Refresh">${ic('refresh', 16)}</button>`;
 	}
@@ -305,6 +326,8 @@ class App {
 		if (!this.st.ctx) return;
 		const r = window.frappe && frappe.get_route && frappe.get_route();
 		if (this.mode === 'desk' && r && r[1] === 'letters' && this.st.ctx.escrow && this.st.section !== 'letters') { this.setSection('letters'); return; }
+		if (this.mode === 'desk' && r && r[1] === 'bills' && this.st.section !== 'bills') { this.setSection('bills'); return; }
+		if (this.st.section === 'dashboard') { this.loadDashboard(); return; }
 		if (this.st.section === 'letters') { if (this.letters) this.letters.on_show(); return; }
 		if (this.st.view === 'list') this.loadList(true);
 	}
@@ -361,7 +384,9 @@ class App {
 	renderStats() {
 		const T = this.st.list.totals;
 		const stat = (k, v, cy) => `<div class="card stat"><span class="accent"></span><div class="k">${k}</div><div class="v${cy ? ' cy' : ''}">${v}</div></div>`;
-		this.$('[data-el=stats]').innerHTML =
+		const box = this.$('[data-el=stats]');
+		if (!box) return; // the saved-bills list is not on screen (dashboard / letters / form)
+		box.innerHTML =
 			stat('Bills', T ? fmt(T.total_bills) : '-') +
 			stat('Bill amount', T ? rs(T.total_bill_amount) : '-') +
 			stat('Sanction amount', T ? rs(T.total_sanction_amount) : '-') +
@@ -412,7 +437,7 @@ class App {
 		const authPill = (r) => (r.sanction_authority ? `<span class="pill cyan">${esc(r.sanction_authority)}</span>` : '');
 		const fileIc = (r) => `<span class="file-ic${r.sanction_order ? '' : ' none'}" title="${r.sanction_order ? 'Sanction order attached' : 'No sanction order'}">${ic('file', 15)}</span>`;
 		const trs = L.rows.map((r) => `<tr class="clickable" data-act="open" data-name="${esc(r.name)}">
-			<td><span class="main">${esc(r.project_name)}</span><span class="sub mono">${esc(r.project)} · ${esc(r.name)}</span></td>
+			<td><span class="main">${esc(r.project_name)}</span><span class="sub mono">${r.project !== r.project_name ? esc(r.project) + ' · ' : ''}${esc(r.name)}</span></td>
 			<td class="nowrap"><span class="pill iris">${esc(r.bill_type_code)}</span> <b>${esc(r.bill_no)}</b><span class="sub">${esc(dmy(r.bill_date))}</span></td>
 			<td>${authPill(r)} <span class="mono">${esc(r.sanction_no || '')}</span><span class="sub">${esc([dmy(r.sanction_date), r.package_no && 'Pkg ' + r.package_no].filter(Boolean).join(' · '))}</span></td>
 			<td class="amt">${rs(r.bill_amount)}</td>
@@ -497,7 +522,7 @@ class App {
 			</div></div>
 			<div class="d-grid"><div class="d-col">
 				<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Bill</h2></div></div><div class="card-body"><dl class="kv">
-					${kv('Project', esc(b.project_name) + ` <span class="pill">${esc(b.project)}</span>`)}${kv('Bill type', esc(b.bill_type))}
+					${kv('Project', esc(b.project_name) + (b.project !== b.project_name ? ` <span class="pill">${esc(b.project)}</span>` : ''))}${kv('Bill type', esc(b.bill_type))}
 					${kv('Bill no', esc(b.bill_no), 'mono')}${kv('Bill date', esc(dmy(b.bill_date)), 'mono')}${kv('Bill amount', rs(b.bill_amount), 'mono')}</dl></div></div>
 				<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Sanction order</h2></div></div><div class="card-body" style="display:flex;flex-direction:column;gap:18px"><dl class="kv">
 					${kv('Department', esc(b.sanction_authority))}${kv('Order no', esc(b.sanction_no), 'mono')}${kv('Order date', esc(dmy(b.sanction_date)), 'mono')}
@@ -568,6 +593,7 @@ class App {
 
 	act(a, t, e) {
 		const d = this.st.detail;
+		if (a.indexOf('dash-') === 0) { this.dashAct(a, t); return; }
 		switch (a) {
 			case 'login': location.href = '/login?redirect-to=' + encodeURIComponent(location.pathname); break;
 			case 'alert-x': this.showAlert(''); break;

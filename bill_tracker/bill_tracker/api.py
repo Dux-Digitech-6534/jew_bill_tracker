@@ -140,42 +140,44 @@ def get_context():
 	}
 
 
+# The project of a bill is a "Site Project" (HSC Master Inhouse app); its name IS the project name (autoname: field:project_name).
+PROJECT_DOCTYPE = "Site Project"
+
+
+@frappe.whitelist()
+def get_dashboard(from_date=None, to_date=None):
+	"""Numbers for the dashboard: sanction order bills and (if jv_escrow is installed) fund transfer letters."""
+	from bill_tracker.bill_tracker import dashboard
+
+	frappe.has_permission(DOCTYPE, "read", throw=True)
+	return dashboard.build(from_date or None, to_date or None, with_letters=bool(_escrow_context()))
+
+
 @frappe.whitelist()
 def projects(txt=None):
-	"""Projects to pick from (Project ID + name)."""
+	"""Site Projects to pick from."""
 	txt = cstr(txt).strip()
-	filters = {}
-	or_filters = None
-	if txt:
-		like = f"%{txt}%"
-		or_filters = [["name", "like", like], ["project_name", "like", like]]
+	or_filters = [["name", "like", f"%{txt}%"]] if txt else None
 	kwargs = dict(
-		fields=["name", "project_name"],
-		filters=filters,
+		fields=["name"],
 		or_filters=or_filters,
-		order_by="modified desc",
-		limit_page_length=20,
+		order_by="name asc",
+		limit_page_length=30,
 	)
 	try:
-		rows = frappe.get_list("Project", **kwargs)
+		rows = frappe.get_list(PROJECT_DOCTYPE, **kwargs)
 	except frappe.PermissionError:
-		# a user who may create bills must still be able to name the project of the bill
+		# a user who may create bills must still be able to name the project of the bill,
+		# even when their roles have no read right on Site Project
 		if not frappe.has_permission(DOCTYPE, "create"):
 			raise
-		rows = frappe.get_all("Project", **kwargs)
-	return [{"name": r.name, "project_name": r.project_name or r.name} for r in rows]
+		rows = frappe.get_all(PROJECT_DOCTYPE, **kwargs)
+	return [{"name": r.name, "project_name": r.name} for r in rows]
 
 
 def _project_names(project_ids):
-	if not project_ids:
-		return {}
-	try:
-		pairs = frappe.get_all(
-			"Project", filters={"name": ["in", project_ids]}, fields=["name", "project_name"], as_list=True
-		)
-	except frappe.PermissionError:
-		return {}
-	return dict(pairs)
+	"""id -> display name. A Site Project's id is its name, so nothing needs to be looked up."""
+	return {p: p for p in project_ids or [] if p}
 
 
 @frappe.whitelist()
@@ -215,12 +217,6 @@ def list_bills(
 			[DOCTYPE, "project", "like", like],
 			[DOCTYPE, "name", "like", like],
 		]
-		try:
-			ids = frappe.get_all("Project", filters=[["project_name", "like", like]], pluck="name", limit_page_length=50)
-		except frappe.PermissionError:
-			ids = []
-		if ids:
-			or_filters.append([DOCTYPE, "project", "in", ids])
 
 	start = max(cint(start), 0)
 	page_length = min(max(cint(page_length), 1), MAX_PAGE_LENGTH)
