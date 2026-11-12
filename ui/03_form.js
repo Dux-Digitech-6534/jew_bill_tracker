@@ -57,7 +57,8 @@ Object.assign(App.prototype, {
 	renderForm() {
 		const f = this.st.form;
 		const ctx = this.st.ctx;
-		const back = `<button class="btn btn-ghost back" data-act="back">${ic('chevL', 16)} ${f.name ? 'Back to bill' : 'All bills'}</button>`;
+		// a NEW bill is the "New bill" tab (no back link, no title); an EDIT opens under "Saved bills"
+		const back = f.name ? `<button class="btn btn-ghost back" data-act="back">${ic('chevL', 16)} Back to bill</button>` : '';
 		if (f.loading) { this.$view.innerHTML = back + `<div class="loading"><span class="spin"></span> Opening the bill...</div>`; return; }
 		const d = f.d;
 		const input = (field, o) => {
@@ -70,7 +71,7 @@ Object.assign(App.prototype, {
 		const hasProgress = num(d.contract_value) || num(d.work_done_till_date) || num(d.previous_payments);
 
 		this.$view.innerHTML = `${back}
-			<div class="f-title"><h2>${f.name ? 'Edit bill' : 'New bill'}</h2>${f.name ? `<span class="pill">${esc(f.name)}</span>` : ''}</div>
+			${f.name ? `<div class="f-title"><h2>Edit bill</h2><span class="pill">${esc(f.name)}</span></div>` : ''}
 			<div data-el="ferr"></div>
 			<div class="f-grid"><div class="f-main" data-el="fmain">
 				<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Bill</h2><div class="sub">Which project, and which running / part bill</div></div></div><div class="card-body"><div class="cols2">
@@ -121,7 +122,7 @@ Object.assign(App.prototype, {
 					<div class="check"><div class="k">Cross-check with the order</div>
 						<div class="input mono-in" data-err="net_as_per_order"><span class="pre">₹</span><input data-f="net_as_per_order" data-money inputmode="decimal" class="mono right" placeholder="Net amount printed on the order" value="${esc(d.net_as_per_order)}"></div>
 						<div class="msg idle" data-el="check-msg"></div></div></div>
-				<div class="f-actions"><button type="button" class="btn btn-secondary" data-act="back">Cancel</button><button type="button" class="btn btn-primary" data-act="save" data-el="save">${f.name ? 'Save changes' : 'Save bill'}</button></div>
+				<div class="f-actions"><button type="button" class="btn btn-secondary" data-act="${f.name ? 'back' : 'clear-form'}">${f.name ? 'Cancel' : 'Clear form'}</button><button type="button" class="btn btn-primary" data-act="save" data-el="save">${f.name ? 'Save changes' : 'Save bill'}</button></div>
 			</div></div>
 			<div class="f-bar"><div class="nb"><div class="k">Net payable</div><div class="v" data-el="bar-net">₹ 0</div></div><button type="button" class="btn btn-primary" data-act="save" data-el="save">${f.name ? 'Save changes' : 'Save bill'}</button></div>
 			<input type="file" hidden data-el="fileinput" accept="${esc(accept)}"><input type="file" hidden data-el="camerainput" accept="image/*" capture="environment">`;
@@ -663,6 +664,7 @@ Object.assign(App.prototype, {
 
 	afterSave(b) {
 		this.st.detail = { name: b.name, data: b, error: '', preview: false };
+		this.loadList(true); // keeps the "Saved bills" count and list current
 		const wasEdit = this.stack[this.stack.length - 2] === 'detail';
 		if (wasEdit) {
 			if (this.mode === 'mobile' && history.state && history.state.bt) history.back();

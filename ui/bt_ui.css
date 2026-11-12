@@ -123,6 +123,15 @@ input[type=date] { font-family: var(--font-mono); font-size: 13.5px; color-schem
 :host([data-theme="dark"]) input[type=date] { color-scheme: dark; }
 input::placeholder, textarea::placeholder { color: var(--fg-4); }
 
+/* ---- tabs (New bill | Saved bills) - same look as the tabs of the letters screen ---- */
+.tabs-wrap { display: flex; }
+.tabs { align-self: flex-start; display: inline-flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); background: var(--bg-sunken); border: 1px solid var(--border-subtle); }
+.tab { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 18px; border: none; border-radius: var(--r-pill); background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .25s var(--spring); white-space: nowrap; }
+.tab:hover { color: var(--iris); }
+.tab:focus-visible { outline: 2px solid var(--iris); outline-offset: 2px; }
+.tab[aria-selected="true"] { background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--shadow-card), var(--inset-hi); }
+.tab .count { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--iris); background: var(--iris-tint); border-radius: var(--r-pill); padding: 2px 8px; }
+
 /* ---- chips & segmented ---- */
 .seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: var(--r-pill); background: var(--bg-sunken); border: 1px solid var(--border-subtle); flex-wrap: wrap; }
 .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 32px; padding: 0 14px; border: none; border-radius: var(--r-pill); background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .25s var(--spring); white-space: nowrap; }

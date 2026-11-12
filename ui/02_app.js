@@ -42,6 +42,7 @@ class App {
 				<div class="hero-acts" data-el="acts"></div>
 			</header>
 			<div class="sections" data-el="sections" hidden></div>
+			<div class="tabs-wrap" data-el="tabs" hidden></div>
 			<div data-el="alert"></div>
 			<div data-el="view"><div class="loading"><span class="spin"></span> Loading...</div></div>
 			<div data-el="letters" hidden></div>
@@ -113,10 +114,65 @@ class App {
 		sessionStorage.removeItem('bt_csrf_retry');
 		this.st.view = 'list';
 		this.renderSections();
-		this.setActs();
-		this.renderList();
-		this.loadList(true);
+		this.loadList(true); // fills the "Saved bills" count while the form is shown
+		// same pattern as the letters: opens on "New bill"; people who may not create bills land on the saved list
+		if (this.st.ctx.can_create) this.openForm(null);
+		else this.view('list');
 		this.openRequestedSection();
+	}
+
+	// ---- tabs of the bills section: New bill | Saved bills -------------------------------
+	isNewForm() {
+		return this.st.view === 'form' && !!this.st.form && !this.st.form.name;
+	}
+
+	renderTabs() {
+		const el = this.$('[data-el=tabs]');
+		const ctx = this.st.ctx;
+		if (!el) return;
+		if (!ctx || this.st.section !== 'bills' || !ctx.can_create) { el.hidden = true; el.innerHTML = ''; return; }
+		const isNew = this.isNewForm();
+		const T = this.st.list.totals;
+		el.hidden = false;
+		el.innerHTML = `<nav class="tabs" role="tablist" aria-label="Sanction order bills">
+			<button type="button" class="tab" role="tab" data-act="tab" data-tab="new" aria-selected="${isNew}">${ic('plus', 15)} New bill</button>
+			<button type="button" class="tab" role="tab" data-act="tab" data-tab="saved" aria-selected="${!isNew}">${ic('receipt', 15)} Saved bills${T ? ` <span class="count">${fmt(T.total_bills)}</span>` : ''}</button></nav>`;
+	}
+
+	/** True when it is fine to leave the form (nothing typed, or the user chose to discard it). */
+	async leaveForm() {
+		const f = this.st.form;
+		if (this.st.view === 'form' && f && f.dirty) {
+			const ok = await this.confirmBox('Discard changes?', 'The details you entered on this bill are not saved yet.', 'Discard', 'Keep editing');
+			if (!ok) return false;
+			f.dirty = false;
+		}
+		return true;
+	}
+
+	async selectTab(tab) {
+		if (tab === 'new') {
+			if (this.isNewForm() || !this.st.ctx.can_create) return;
+			if (!(await this.leaveForm())) return;
+			this.stack = ['list'];
+			this.openForm(null);
+		} else {
+			if (this.st.view === 'list') return;
+			if (!(await this.leaveForm())) return;
+			this.stack = ['list'];
+			this.view('list');
+			this.loadList(true);
+		}
+	}
+
+	async clearForm() {
+		const f = this.st.form;
+		if (f && f.dirty) {
+			const ok = await this.confirmBox('Clear the form?', 'Everything you entered on this bill will be removed.', 'Clear', 'Keep');
+			if (!ok) return;
+		}
+		this.stack = ['list'];
+		this.openForm(null);
 	}
 
 	// ---- sections: Sanction order bills | Fund transfer letters ------------------------
@@ -147,6 +203,7 @@ class App {
 		}
 		this.st.section = name;
 		this.renderSections();
+		this.renderTabs();
 		this.$('[data-el=view]').hidden = name !== 'bills';
 		this.$('[data-el=letters]').hidden = name !== 'letters';
 		this.showAlert('');
@@ -193,8 +250,7 @@ class App {
 		const c = this.st.ctx || {};
 		const el = this.$('[data-el=acts]');
 		if (this.st.view !== 'list' || this.st.section !== 'bills') { el.innerHTML = ''; return; }
-		el.innerHTML = `<button class="btn btn-ghost" data-act="refresh" title="Refresh">${ic('refresh', 16)}</button>` +
-			(c.can_create ? `<button class="btn btn-primary" data-act="new">${ic('plus', 16)} New bill</button>` : '');
+		el.innerHTML = `<button class="btn btn-ghost" data-act="refresh" title="Refresh">${ic('refresh', 16)}</button>`;
 	}
 
 	// ---- navigation ------------------------------------------------------------
@@ -207,6 +263,7 @@ class App {
 		this.st.view = name;
 		this.showAlert('');
 		this.setActs();
+		this.renderTabs();
 		if (name === 'list') this.renderList();
 		else if (name === 'detail') this.renderDetail();
 		else if (name === 'form') this.renderForm();
@@ -335,6 +392,7 @@ class App {
 			L.loaded = true;
 		}
 		L.loading = false;
+		this.renderTabs(); // the "Saved bills" count
 		if (this.st.view === 'list') { this.renderStats(); this.renderRows(); }
 	}
 
@@ -397,7 +455,7 @@ class App {
 
 	renderDetail() {
 		const d = this.st.detail;
-		const back = `<button class="btn btn-ghost back" data-act="back">${ic('chevL', 16)} All bills</button>`;
+		const back = `<button class="btn btn-ghost back" data-act="back">${ic('chevL', 16)} Saved bills</button>`;
 		if (d.error) { this.$view.innerHTML = back + this.errorCard(d.error); return; }
 		if (!d.data) { this.$view.innerHTML = back + `<div class="loading"><span class="spin"></span> Opening the bill...</div>`; return; }
 		const b = d.data;
@@ -518,7 +576,9 @@ class App {
 			case 'section': this.setSection(t.dataset.v); break;
 			case 'refresh': this.loadList(true); break;
 			case 'more': this.loadList(false); break;
-			case 'new': this.openForm(null); break;
+			case 'new': this.selectTab('new'); break;
+			case 'tab': this.selectTab(t.dataset.tab); break;
+			case 'clear-form': this.clearForm(); break;
 			case 'open': this.openDetail(t.dataset.name); break;
 			case 'back': this.goBack(); break;
 			case 'edit': this.openForm(d.name); break;
