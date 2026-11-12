@@ -101,11 +101,31 @@ def _bill_type(value):
 	return found
 
 
+def _escrow_context():
+	"""The "Fund transfer letters" section (jv_escrow app) - only when that app is installed on this site
+	and the user may read its letters; otherwise the page simply has no such section."""
+	try:
+		if "jv_escrow" not in frappe.get_installed_apps():
+			return None
+		if not frappe.has_permission("Escrow Fund Transfer", "read"):
+			return None
+		path = frappe.get_app_path("jv_escrow", "public", "js", "escrow_transfer_ui.js")
+		if not os.path.exists(path):
+			return None
+		return {
+			"label": "Fund transfer letters",
+			"url": f"/assets/jv_escrow/js/escrow_transfer_ui.js?v={int(os.path.getmtime(path))}",
+		}
+	except Exception:  # noqa: BLE001 - a missing / broken optional app must never break the Bill Tracker page
+		return None
+
+
 @frappe.whitelist()
 def get_context():
 	"""What the page needs to know before it can draw anything."""
 	frappe.has_permission(DOCTYPE, "read", throw=True)
 	return {
+		"escrow": _escrow_context(),
 		"user": frappe.session.user,
 		"full_name": get_fullname(frappe.session.user),
 		"can_create": bool(frappe.has_permission(DOCTYPE, "create")),

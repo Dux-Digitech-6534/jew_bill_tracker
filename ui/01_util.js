@@ -166,6 +166,22 @@ async function prepareImage(file) {
 	}
 }
 
+/** Load a script file once (used for the Fund transfer letters screen of the jv_escrow app). */
+const _scripts = {};
+function loadScript(url, ready) {
+	if (ready && ready()) return Promise.resolve();
+	if (!_scripts[url]) {
+		_scripts[url] = new Promise((resolve, reject) => {
+			const s = document.createElement('script');
+			s.src = url;
+			s.onload = () => resolve();
+			s.onerror = () => { delete _scripts[url]; reject(new Error('Could not load the letters screen. Check the connection and try again.')); };
+			document.head.appendChild(s);
+		});
+	}
+	return _scripts[url];
+}
+
 /** Open a sanction order. In the Android app there is no PDF viewer inside the WebView, so hand the file to the share sheet. */
 async function openFile(url, name) {
 	const cap = window.Capacitor;

@@ -18,7 +18,9 @@ class App {
 			detail: { name: '', data: null, error: '', preview: false },
 			form: null,
 			calc: null,
+			section: 'bills', // 'bills' | 'letters' (the Fund transfer letters screen of the jv_escrow app, when installed)
 		};
+		this.letters = null;
 		this.stack = ['list'];
 		this.reqs = { list: 0, detail: 0, calc: 0, pick: 0 };
 		this.loadListSoon = debounce(() => this.loadList(true), 320);
@@ -39,8 +41,10 @@ class App {
 				</div>
 				<div class="hero-acts" data-el="acts"></div>
 			</header>
+			<div class="sections" data-el="sections" hidden></div>
 			<div data-el="alert"></div>
 			<div data-el="view"><div class="loading"><span class="spin"></span> Loading...</div></div>
+			<div data-el="letters" hidden></div>
 		</div>
 		<div class="toast" data-el="toast"></div>
 		<div data-el="overlay"></div></div>`;
@@ -108,9 +112,60 @@ class App {
 		}
 		sessionStorage.removeItem('bt_csrf_retry');
 		this.st.view = 'list';
+		this.renderSections();
 		this.setActs();
 		this.renderList();
 		this.loadList(true);
+		this.openRequestedSection();
+	}
+
+	// ---- sections: Sanction order bills | Fund transfer letters ------------------------
+	renderSections() {
+		const el = this.$('[data-el=sections]');
+		const esc_ = this.st.ctx && this.st.ctx.escrow;
+		if (!esc_) { el.hidden = true; el.innerHTML = ''; return; }
+		const s = this.st.section;
+		el.hidden = false;
+		el.innerHTML = `<div class="seg" role="tablist" aria-label="Sections">
+			<button type="button" role="tab" data-act="section" data-v="bills" aria-pressed="${s === 'bills'}">${ic('receipt', 15)} Sanction order bills</button>
+			<button type="button" role="tab" data-act="section" data-v="letters" aria-pressed="${s === 'letters'}">${ic('file', 15)} ${esc(esc_.label || 'Fund transfer letters')}</button></div>`;
+	}
+
+	/** /desk/bill-tracker/letters opens the letters section straight away. */
+	openRequestedSection() {
+		const r = window.frappe && frappe.get_route && frappe.get_route();
+		if (this.mode === 'desk' && r && r[1] === 'letters' && this.st.ctx.escrow) this.setSection('letters');
+	}
+
+	async setSection(name) {
+		if (name === this.st.section) return;
+		if (name === 'letters' && !(this.st.ctx && this.st.ctx.escrow)) return;
+		if (this.st.view === 'form' && this.st.form && this.st.form.dirty) {
+			const ok = await this.confirmBox('Leave this bill?', 'The details you entered on this bill are not saved yet.', 'Leave', 'Stay');
+			if (!ok) return;
+			this.st.form.dirty = false;
+		}
+		this.st.section = name;
+		this.renderSections();
+		this.$('[data-el=view]').hidden = name !== 'bills';
+		this.$('[data-el=letters]').hidden = name !== 'letters';
+		this.showAlert('');
+		this.setActs();
+		if (name === 'letters') this.showLetters();
+		else if (this.st.view === 'list') this.loadList(true);
+	}
+
+	async showLetters() {
+		const el = this.$('[data-el=letters]');
+		if (this.letters) { this.letters.on_show(); return; }
+		el.innerHTML = `<div class="loading"><span class="spin"></span> Loading the letters screen...</div>`;
+		try {
+			await loadScript(this.st.ctx.escrow.url, () => !!(window.jv_escrow && window.jv_escrow.EscrowTransfer));
+			el.innerHTML = '';
+			this.letters = new window.jv_escrow.EscrowTransfer(el, { embedded: true });
+		} catch (e) {
+			el.innerHTML = this.errorCard(e.message || 'Could not load the letters screen.', 'letters');
+		}
 	}
 
 	async checkLogin(err) {
@@ -129,14 +184,15 @@ class App {
 	}
 
 	errorCard(msg, retry) {
+		const act = retry === 'letters' ? 'retry-letters' : 'retry';
 		return `<div class="card"><span class="accent"></span><div class="empty"><span class="e-ic" style="background:var(--err-bg);color:var(--err)">${ic('alert', 22)}</span>
-			<b>Could not open</b>${esc(msg)}${retry ? `<div style="margin-top:14px"><button class="btn btn-secondary" data-act="retry">${ic('refresh', 15)} Try again</button></div>` : ''}</div></div>`;
+			<b>Could not open</b>${esc(msg)}${retry ? `<div style="margin-top:14px"><button class="btn btn-secondary" data-act="${act}">${ic('refresh', 15)} Try again</button></div>` : ''}</div></div>`;
 	}
 
 	setActs() {
 		const c = this.st.ctx || {};
 		const el = this.$('[data-el=acts]');
-		if (this.st.view !== 'list') { el.innerHTML = ''; return; }
+		if (this.st.view !== 'list' || this.st.section !== 'bills') { el.innerHTML = ''; return; }
 		el.innerHTML = `<button class="btn btn-ghost" data-act="refresh" title="Refresh">${ic('refresh', 16)}</button>` +
 			(c.can_create ? `<button class="btn btn-primary" data-act="new">${ic('plus', 16)} New bill</button>` : '');
 	}
@@ -189,7 +245,11 @@ class App {
 	}
 
 	on_show() {
-		if (this.st.ctx && this.st.view === 'list') this.loadList(true);
+		if (!this.st.ctx) return;
+		const r = window.frappe && frappe.get_route && frappe.get_route();
+		if (this.mode === 'desk' && r && r[1] === 'letters' && this.st.ctx.escrow && this.st.section !== 'letters') { this.setSection('letters'); return; }
+		if (this.st.section === 'letters') { if (this.letters) this.letters.on_show(); return; }
+		if (this.st.view === 'list') this.loadList(true);
 	}
 
 	// ---- list ------------------------------------------------------------------
@@ -454,6 +514,8 @@ class App {
 			case 'login': location.href = '/login?redirect-to=' + encodeURIComponent(location.pathname); break;
 			case 'alert-x': this.showAlert(''); break;
 			case 'retry': this.loadList(true); break;
+			case 'retry-letters': this.showLetters(); break;
+			case 'section': this.setSection(t.dataset.v); break;
 			case 'refresh': this.loadList(true); break;
 			case 'more': this.loadList(false); break;
 			case 'new': this.openForm(null); break;

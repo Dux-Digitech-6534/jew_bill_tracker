@@ -24,6 +24,11 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
   sanction amount, net payable), search and filters, bill detail (sanction order preview, calculation as on the order),
   and the new / edit form with file upload and live calculation. The Frappe form stays available for back-office use.
   API: `bill_tracker/api.py` (`get_context`, `projects`, `list_bills`, `get_bill`, `calculate`, `save_bill`).
+- **Fund transfer letters section** inside the Bill Tracker page: when the `jv_escrow` app is installed on the site (and the
+  user may read *Escrow Fund Transfer*), the page shows a switch *Sanction order bills | Fund transfer letters*. The second
+  section is the TPPL-JEW-JV escrow letters screen (credit amount -> both letters, Generate PDF, Save record, Saved
+  letters), loaded from `jv_escrow/public/js/escrow_transfer_ui.js`; `/desk/bill-tracker/letters` opens it directly.
+  Without `jv_escrow` the switch simply does not appear (`api._escrow_context`).
 - A **Bill Tracker Home** workspace (with sidebar and desktop icon) that links to the page and the Project Bill list.
 
 **Editing the page**: the page script is generated from `ui/` (`node ui/build.js`); change `ui/*.js` / `ui/bt_ui.css`,

@@ -125,7 +125,7 @@ input::placeholder, textarea::placeholder { color: var(--fg-4); }
 
 /* ---- chips & segmented ---- */
 .seg { display: inline-flex; gap: 3px; padding: 3px; border-radius: var(--r-pill); background: var(--bg-sunken); border: 1px solid var(--border-subtle); flex-wrap: wrap; }
-.seg button { height: 32px; padding: 0 14px; border: none; border-radius: var(--r-pill); background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .25s var(--spring); white-space: nowrap; }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 32px; padding: 0 14px; border: none; border-radius: var(--r-pill); background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .25s var(--spring); white-space: nowrap; }
 .seg button:hover { color: var(--iris); }
 .seg button[aria-pressed="true"] { background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--shadow-card), var(--inset-hi); }
 .seg.full { display: flex; } .seg.full button { flex: 1 1 0; }
