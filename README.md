@@ -23,7 +23,7 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
   work value (whole rupee, half up, like the orders); leave the rate empty and type the amount. The maths lives in
   `bill_tracker/calc.py` and is shared by the document (every save) and the page (live preview). A new bill starts as MPUDCL
   with that order's lines already on the form, in the order's sequence (Labour Cess 1%, Retention 5%, TDS on SGST 1%, TDS on
-  CGST 1%, Workman Compensation, Liquidated Damages, TDS 2%, and the "Release withheld amount ... Kayakalp Work" addition);
+  CGST 1%, Workman Compensation, Liquidity Damages, SIP, Labour License, PF, Royalty (all "Amount Withheld for ...", typed), TDS 2%, and the "Release withheld amount ... Kayakalp Work" addition);
   lines left without a rate or amount are dropped on save ("Liquidity Damages" is spelt as the order prints it).
   **Every calculated figure can be typed over** (the order's own figure wins): the amount of a line that has a rate
   (`amount_manual`), the work value when ULB lines exist (`base_manual`), SGST / CGST (`gst_manual`); the box is outlined

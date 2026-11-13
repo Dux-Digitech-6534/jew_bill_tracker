@@ -40,6 +40,12 @@ AUTHORITIES = ("MPUDCL", "Jal Nigam", "Other")
 #   - a line without a rate is an amount that differs bill to bill - typed in, and dropped on save when left empty.
 # "optional_*" lines are not shown by default, they are one click away.
 RELEASE_WITHHELD = "Release withheld amount in RA Bill No. … & Kayakalp Work"
+WITHHELD_OPTIONAL = [
+	{"particular": "Amount Withheld for SIP"},
+	{"particular": "Amount Withheld for Labour License"},
+	{"particular": "Amount Withheld for PF"},
+	{"particular": "Amount Withheld for Royalty"},
+]
 PRESETS = {
 	"MPUDCL": {
 		"deductions": [
@@ -49,6 +55,10 @@ PRESETS = {
 			{"particular": "TDS on CGST", "rate": 1},
 			{"particular": "Amount Withheld for Workman Compensation Policy"},
 			{"particular": "Amount Withheld for Liquidity Damages"},  # spelt as the order prints it
+			{"particular": "Amount Withheld for SIP"},
+			{"particular": "Amount Withheld for Labour License"},
+			{"particular": "Amount Withheld for PF"},
+			{"particular": "Amount Withheld for Royalty"},
 			{"particular": "TDS", "rate": 2},
 		],
 		"additions": [{"particular": RELEASE_WITHHELD}],
@@ -63,7 +73,7 @@ PRESETS = {
 			{"particular": "Performance Security Deposit"},
 		],
 		"additions": [],
-		"optional_deductions": [],
+		"optional_deductions": list(WITHHELD_OPTIONAL),
 		"optional_additions": [{"particular": "Release of withheld amount (earlier RA bills)"}],
 	},
 	"Other": {
@@ -73,6 +83,7 @@ PRESETS = {
 			{"particular": "Retention Money"},
 			{"particular": "TDS"},
 			{"particular": "Labour Cess"},
+			*WITHHELD_OPTIONAL,
 		],
 		"optional_additions": [{"particular": "Release of withheld amount (earlier RA bills)"}],
 	},
