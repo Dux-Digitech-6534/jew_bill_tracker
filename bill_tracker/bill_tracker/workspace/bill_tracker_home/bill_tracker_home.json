@@ -32,9 +32,12 @@
   },
   {
    "role": "Accounts User"
+  },
+  {
+   "role": "Bill Tracker User"
   }
  ],
- "sequence_id": 99.0,
+ "sequence_id": 99,
  "shortcuts": [
   {
    "color": "Blue",

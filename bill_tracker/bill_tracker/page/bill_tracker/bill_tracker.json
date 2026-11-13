@@ -18,6 +18,9 @@
   },
   {
    "role": "Accounts User"
+  },
+  {
+   "role": "Bill Tracker User"
   }
  ],
  "standard": "Yes",

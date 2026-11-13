@@ -19,19 +19,27 @@ The shape follows the sanction orders we receive (MPUDCL "Sanction Order", Jal N
 Rule for every GST / addition / deduction line: a Rate (%) makes the amount automatic
 (work value x rate, rounded to the whole rupee, exactly like the orders do); leave the rate empty and
 type the amount yourself. So anything on an order that does not follow a rate can still be entered.
+
+Every calculated figure can also be typed over (the order's own figure wins): an amount of a line that has a rate
+("amount_manual"), the work value when ULB lines exist ("base_manual"), SGST / CGST ("gst_manual"). A typed figure stays
+as typed; the rest of the bill is worked out from it.
 """
 
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
-from frappe.utils import cstr
+from frappe.utils import cint, cstr
 
 ZERO = Decimal("0")
 
 # Sanctioning departments we get orders from. "Other" keeps the form usable for new ones.
 AUTHORITIES = ("MPUDCL", "Jal Nigam", "Other")
 
-# Standard lines of each department's order, so the accounts team does not retype them for every bill.
-# A line with a rate is calculated automatically; "manual" lines are amounts that differ bill to bill.
+# The standard lines of each department's order, in the order the order prints them. A new bill starts with
+# these already on the form (so the accounts team does not retype them for every bill):
+#   - a line with a "rate" is calculated automatically (work value x rate);
+#   - a line without a rate is an amount that differs bill to bill - typed in, and dropped on save when left empty.
+# "optional_*" lines are not shown by default, they are one click away.
+RELEASE_WITHHELD = "Release withheld amount in RA Bill No. … & Kayakalp Work"
 PRESETS = {
 	"MPUDCL": {
 		"deductions": [
@@ -39,29 +47,39 @@ PRESETS = {
 			{"particular": "Retention Money", "rate": 5},
 			{"particular": "TDS on SGST", "rate": 1},
 			{"particular": "TDS on CGST", "rate": 1},
+			{"particular": "Amount Withheld for Workman Compensation Policy"},
+			{"particular": "Amount Withheld for Liquidity Damages"},  # spelt as the order prints it
 			{"particular": "TDS", "rate": 2},
 		],
-		"manual_deductions": [
-			"Amount Withheld for Workman Compensation Policy",
-			"Amount Withheld for Liquidated Damages",
-		],
-		"manual_additions": ["Release of withheld amount (earlier RA bills)"],
+		"additions": [{"particular": RELEASE_WITHHELD}],
+		"optional_deductions": [],
+		"optional_additions": [],
 	},
 	"Jal Nigam": {
 		"deductions": [
 			{"particular": "GST TDS", "rate": 2},
 			{"particular": "TDS", "rate": 2},
 			{"particular": "Labour Welfare Cess", "rate": 1},
+			{"particular": "Performance Security Deposit"},
 		],
-		"manual_deductions": ["Performance Security Deposit"],
-		"manual_additions": ["Release of withheld amount (earlier RA bills)"],
+		"additions": [],
+		"optional_deductions": [],
+		"optional_additions": [{"particular": "Release of withheld amount (earlier RA bills)"}],
 	},
 	"Other": {
 		"deductions": [],
-		"manual_deductions": ["Retention Money", "TDS", "Labour Cess"],
-		"manual_additions": ["Release of withheld amount (earlier RA bills)"],
+		"additions": [],
+		"optional_deductions": [
+			{"particular": "Retention Money"},
+			{"particular": "TDS"},
+			{"particular": "Labour Cess"},
+		],
+		"optional_additions": [{"particular": "Release of withheld amount (earlier RA bills)"}],
 	},
 }
+
+# the department a new bill starts with (its standard lines are on the form straight away)
+DEFAULT_AUTHORITY = "MPUDCL"
 
 DEFAULT_GST_RATE = 18
 
@@ -93,12 +111,13 @@ def num(value):
 
 
 def amount_in_words(amount):
-	"""'Rupees One Crore Forty Eight Lakh ... Only' - the wording used at the foot of the orders."""
+	"""'Rupees One Crore Forty Eight Lac ... Only' - the wording printed at the foot of the orders."""
 	from frappe.utils import money_in_words
 
 	if not amount:
 		return ""
 	text = money_in_words(float(amount), "INR").replace(",", "").strip()
+	text = text.replace("Lakh", "Lac").replace(" And ", " ")  # as the order prints it: "... Nine Hundred Seventeen Only"
 	if text.startswith("INR "):
 		text = "Rupees " + text[4:]
 	text = text.rstrip(".")
@@ -118,13 +137,17 @@ def _rows(items, base, with_rate):
 		if not (particular or rate or amount or contract):
 			continue  # a blank row the user never filled
 		auto = False
-		if with_rate and rate > 0:
+		manual = with_rate and rate > 0 and bool(cint(item.get("amount_manual")))  # typed over the calculated amount
+		if with_rate and rate > 0 and not manual:
 			amount = rupee(base * rate / 100)
 			auto = True
+		if with_rate and not rate and not amount:
+			continue  # a standard line left empty (e.g. "Amount Withheld ...") is simply not part of this bill
 		row = {"particular": particular, "amount": num(amount)}
 		if with_rate:
 			row["rate"] = num(rate)
 			row["auto"] = auto
+			row["amount_manual"] = 1 if manual else 0
 		else:
 			row["contract_amount"] = num(contract)
 		out.append(row)
@@ -138,12 +161,14 @@ def compute(data):
 	# ---- work value ---------------------------------------------------------------------------
 	work_lines = _rows(g("work_lines"), ZERO, with_rate=False)
 	work_total = sum((D(r["amount"]) for r in work_lines), ZERO)
-	base_from_lines = work_total > 0
+	base_manual = work_total > 0 and bool(cint(g("base_manual")))  # work value typed over the ULB total
+	base_from_lines = work_total > 0 and not base_manual
 	base = work_total if base_from_lines else paise(g("base_amount"))
 
 	# ---- GST ----------------------------------------------------------------------------------
 	gst_rate = D(g("gst_rate"))
-	gst_auto = gst_rate > 0
+	gst_manual = gst_rate > 0 and bool(cint(g("gst_manual")))  # SGST / CGST typed over the calculated ones
+	gst_auto = gst_rate > 0 and not gst_manual
 	if gst_auto:
 		sgst = cgst = rupee(base * gst_rate / 200)  # half each, like the orders (9% + 9%)
 	else:
@@ -173,9 +198,11 @@ def compute(data):
 		"work_lines": work_lines,
 		"work_total": num(work_total),
 		"base_from_lines": base_from_lines,
+		"base_manual": 1 if base_manual else 0,
 		"base_amount": num(base),
 		"gst_rate": num(gst_rate),
 		"gst_auto": gst_auto,
+		"gst_manual": 1 if gst_manual else 0,
 		"sgst_amount": num(sgst),
 		"cgst_amount": num(cgst),
 		"gst_total": num(sgst + cgst),
@@ -200,6 +227,8 @@ def compute(data):
 # fields of the Project Bill document that feed / receive the calculation
 INPUT_FIELDS = (
 	"base_amount",
+	"base_manual",
+	"gst_manual",
 	"gst_rate",
 	"sgst_amount",
 	"cgst_amount",
@@ -210,6 +239,8 @@ INPUT_FIELDS = (
 )
 OUTPUT_FIELDS = (
 	"base_amount",
+	"base_manual",
+	"gst_manual",
 	"gst_rate",
 	"sgst_amount",
 	"cgst_amount",
@@ -229,8 +260,8 @@ OUTPUT_FIELDS = (
 )
 TABLES = {
 	"work_lines": ("particular", "contract_amount", "amount"),
-	"additions": ("particular", "rate", "amount"),
-	"deductions": ("particular", "rate", "amount"),
+	"additions": ("particular", "rate", "amount", "amount_manual"),
+	"deductions": ("particular", "rate", "amount", "amount_manual"),
 }
 
 

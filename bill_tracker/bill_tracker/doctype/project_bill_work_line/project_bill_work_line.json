@@ -14,28 +14,29 @@
    "fieldname": "particular",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "ULB / Particular",
+   "label": "ULB Name",
    "reqd": 1
   },
   {
-   "description": "Design build / contract amount of this ULB",
+   "description": "Full design-build value of this ULB, as printed in the order",
    "fieldname": "contract_amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Contract Amount"
+   "label": "Design Build Amount"
   },
   {
    "fieldname": "amount",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Bill Amount"
+   "label": "Amount",
+   "description": "Amount billed for this ULB in this bill (Design Build Amount minus Amount = still to be billed)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-11-12 15:30:00.000000",
+ "modified": "2026-11-13 10:30:00.000000",
  "modified_by": "Administrator",
  "module": "Bill Tracker",
  "name": "Project Bill Work Line",

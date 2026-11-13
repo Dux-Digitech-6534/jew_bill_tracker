@@ -24,10 +24,12 @@
   "work_lines",
   "calc_section",
   "base_amount",
+  "base_manual",
   "gst_rate",
   "column_break_calc1",
   "sgst_amount",
   "cgst_amount",
+  "gst_manual",
   "column_break_calc2",
   "bill_total",
   "additions_section",
@@ -50,6 +52,8 @@
   "column_break_progress",
   "balance_work",
   "claimed_this_bill",
+  "invoice_section",
+  "sales_invoice",
   "remarks_section",
   "remarks"
  ],
@@ -60,7 +64,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Project",
-   "options": "Site Project",
+   "options": "Bill Project",
    "reqd": 1,
    "search_index": 1
   },
@@ -128,7 +132,7 @@
   {
    "fieldname": "package_no",
    "fieldtype": "Data",
-   "label": "Package / Agreement No"
+   "label": "Package No"
   },
   {
    "description": "Amount the order sanctions for payment (as written in the order).",
@@ -145,10 +149,10 @@
   {
    "fieldname": "work_section",
    "fieldtype": "Section Break",
-   "label": "Work-wise Breakup (ULB / Particular)"
+   "label": "Work-wise Breakup (ULB)"
   },
   {
-   "description": "Optional. When lines are entered, the Work Value below is their total.",
+   "description": "The ULBs of the order: Design Build Amount (full value of that ULB) and Amount (billed in this bill). When lines are entered, the Work Value below is the total of their Amount.",
    "fieldname": "work_lines",
    "fieldtype": "Table",
    "label": "Work Lines",
@@ -164,6 +168,12 @@
    "fieldname": "base_amount",
    "fieldtype": "Currency",
    "label": "Work Value (before GST)"
+  },
+  {
+   "description": "Tick when the Work Value was typed over the total of the ULB lines.",
+   "fieldname": "base_manual",
+   "fieldtype": "Check",
+   "label": "Work Value typed by hand"
   },
   {
    "default": "18",
@@ -185,6 +195,12 @@
    "fieldname": "cgst_amount",
    "fieldtype": "Currency",
    "label": "CGST"
+  },
+  {
+   "description": "Tick when SGST / CGST were typed over the calculated ones.",
+   "fieldname": "gst_manual",
+   "fieldtype": "Check",
+   "label": "GST typed by hand"
   },
   {
    "fieldname": "column_break_calc2",
@@ -313,6 +329,19 @@
    "read_only": 1
   },
   {
+   "fieldname": "invoice_section",
+   "fieldtype": "Section Break",
+   "label": "Sales Invoice"
+  },
+  {
+   "description": "The draft Sales Invoice made from this bill. The Bill Tracker never submits it.",
+   "fieldname": "sales_invoice",
+   "fieldtype": "Data",
+   "label": "Sales Invoice",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "remarks_section",
    "fieldtype": "Section Break"
   },
@@ -324,7 +353,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-12 15:30:00.000000",
+ "modified": "2026-11-13 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bill Tracker",
  "name": "Project Bill",
@@ -357,6 +386,18 @@
    "read": 1,
    "report": 1,
    "role": "Accounts User",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Bill Tracker User",
+   "share": 1,
    "write": 1
   }
  ],

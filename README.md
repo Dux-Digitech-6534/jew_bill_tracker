@@ -8,23 +8,47 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
 
 - **Project Bill** DocType (module *Bill Tracker*): Project, Bill Type (RA - Running Account / PA - Part Account),
   Bill No, Bill Date, Bill Amount and the Sanction Order file (PDF or image, mandatory).
-  The **Project** is a *Site Project* (doctype of the HSC Master Inhouse app, its name is the project name), so that app must be
-  installed on the site. Numbered `PB-.YYYY.-.####`, track changes on. A Project + Bill Type + Bill No combination can only be entered once.
+  The **Project** is a *Bill Project* - the Bill Tracker's own list (name = project name, optional default department, the
+  customer the draft Sales Invoice is made out to, cost center, disabled flag). Projects are added from the Settings tab or
+  straight from the Project field of a bill; they are never deleted from the page, only disabled. Numbered `PB-.YYYY.-.####`, track changes on. A Project + Bill Type + Bill No combination can only be entered once.
   System Manager has full access; Projects Manager and Accounts User can read, write and create.
 - **Sanction order details and payment calculation** (MPUDCL "Sanction Order" and Jal Nigam "Summary of RA" style):
-  sanctioning department, order no / date, package / agreement no, sanction amount, an optional ULB-wise breakup
-  (child table *Project Bill Work Line*), GST, additions (e.g. release of withheld amount) and deductions
+  sanctioning department, order no / date, package no, sanction amount, an optional ULB-wise breakup
+  (child table *Project Bill Work Line*: ULB name, **Design Build Amount** = full value of the ULB as printed in the order,
+  **Amount** = what this bill claims for it, **Difference** = Design Build Amount - Amount, still left), GST, additions (e.g. release of withheld amount) and deductions
   (child table *Project Bill Adjustment*: Labour Cess, Retention, TDS ...), the net payable (also in words) and a cross-check
   against the net amount printed on the order. Optional contract / progress figures (contract value, work done till date,
   previous payments -> claimed under this bill, balance work).
   The rule is the same for every GST / addition / deduction line: give a **Rate %** and the amount is worked out on the
   work value (whole rupee, half up, like the orders); leave the rate empty and type the amount. The maths lives in
-  `bill_tracker/calc.py` and is shared by the document (every save) and the page (live preview). Standard deductions per
-  department are in `calc.PRESETS`. Both sample orders reproduce to the rupee.
+  `bill_tracker/calc.py` and is shared by the document (every save) and the page (live preview). A new bill starts as MPUDCL
+  with that order's lines already on the form, in the order's sequence (Labour Cess 1%, Retention 5%, TDS on SGST 1%, TDS on
+  CGST 1%, Workman Compensation, Liquidated Damages, TDS 2%, and the "Release withheld amount ... Kayakalp Work" addition);
+  lines left without a rate or amount are dropped on save ("Liquidity Damages" is spelt as the order prints it).
+  **Every calculated figure can be typed over** (the order's own figure wins): the amount of a line that has a rate
+  (`amount_manual`), the work value when ULB lines exist (`base_manual`), SGST / CGST (`gst_manual`); the box is outlined
+  and a ↺ button brings the calculated figure back. The payment panel is laid out like the order: Total / Add: / Gross Total /
+  Less: (every line) / Total deductions / Net Amount Payable and the amount in words ("Rupees … Lac … Only"). Changing the department swaps the lines nobody has touched
+  (`calc.PRESETS`; a project's default department does the same). Both sample orders reproduce to the rupee.
+- **Draft Sales Invoice** (`invoice.py`, called from the Project Bill after every save): the bill's invoice is made as a
+  DRAFT modelled on the invoices the accounts team makes by hand - customer from the project, one *Works Contract Receipt*
+  line per ULB (the breakup; one line for the work value when there are no ULBs), CGST + SGST on the net total (same-state /
+  other-state template), PO ref and remarks carry the bill. **Posting date = bill date minus 2 days**; if that day is a
+  Sunday or a day of the holiday list (company default or the one in Settings) the previous working day is used (or the
+  next one, never later than the day before the bill date - Settings: days, direction, holiday list). With a typed-over
+  work value the invoice has one line equal to it. It is **never submitted** by the
+  Bill Tracker. While it is a draft it follows edits of the bill; a submitted / cancelled invoice is left alone; there is
+  never a second invoice for a bill. A problem (e.g. the project has no customer) never loses the bill - the page shows
+  the reason and a *Create draft Sales Invoice* button. The link is stored in `Project Bill.sales_invoice` (a Data field,
+  so the draft can still be deleted). Company, item, GST templates, default cost center and an on/off switch live in the
+  single doctype *Bill Tracker Settings* (Settings tab).
 - **Bill Tracker** page (`/desk/bill-tracker`): one DUX Digitech design-system screen - summary cards (bills, bill amount,
   sanction amount, net payable), search and filters, bill detail (sanction order preview, calculation as on the order),
   and the new / edit form with file upload and live calculation. The Frappe form stays available for back-office use.
-  API: `bill_tracker/api.py` (`get_context`, `projects`, `list_bills`, `get_bill`, `calculate`, `save_bill`).
+  API: `bill_tracker/api.py` (`get_context`, `projects`, `list_bills`, `get_bill`, `calculate`, `save_bill`, `create_invoice`,
+  `list_projects`, `save_project`, `lookup`, `get_settings`, `save_settings`).
+- **Settings** section of the page (`/desk/bill-tracker/settings`): the projects (add / edit / disable, with department,
+  customer, cost center, number of bills) and the draft Sales Invoice defaults.
 - **Dashboard** (first section of the page, opens by default): one period filter (All time / This financial year / Last 12
   months / Last 3 months / Custom) scopes everything below it. *Sanction order bills*: bills, bill amount, net payable,
   deductions, a warning when bills differ from the net printed on the order, net payable by month, by department, top

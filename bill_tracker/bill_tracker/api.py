@@ -14,10 +14,12 @@ import frappe
 from frappe import _
 from frappe.utils import cint, cstr, flt, get_fullname, today
 
-from bill_tracker.bill_tracker import calc
+from bill_tracker.bill_tracker import calc, invoice
 from bill_tracker.bill_tracker.doctype.project_bill.project_bill import ALLOWED_SANCTION_ORDER_EXTENSIONS
 
 DOCTYPE = "Project Bill"
+PROJECT_DOCTYPE = "Bill Project"
+SETTINGS_DOCTYPE = invoice.SETTINGS
 BILL_TYPES = ("RA - Running Account", "PA - Part Account")
 MAX_PAGE_LENGTH = 200
 
@@ -52,9 +54,11 @@ SCALAR_FIELDS = (
 	"sanction_amount",
 	"sanction_order",
 	"base_amount",
+	"base_manual",
 	"gst_rate",
 	"sgst_amount",
 	"cgst_amount",
+	"gst_manual",
 	"net_as_per_order",
 	"contract_value",
 	"work_done_till_date",
@@ -74,9 +78,10 @@ TEXT_FIELDS = (
 )
 TABLE_FIELDS = {
 	"work_lines": ("particular", "contract_amount", "amount"),
-	"additions": ("particular", "rate", "amount"),
-	"deductions": ("particular", "rate", "amount"),
+	"additions": ("particular", "rate", "amount", "amount_manual"),
+	"deductions": ("particular", "rate", "amount", "amount_manual"),
 }
+CHECK_FIELDS = ("base_manual", "gst_manual", "amount_manual")  # tick boxes: 0 / 1
 
 
 def _parse(data):
@@ -130,6 +135,10 @@ def get_context():
 		"full_name": get_fullname(frappe.session.user),
 		"can_create": bool(frappe.has_permission(DOCTYPE, "create")),
 		"can_write": bool(frappe.has_permission(DOCTYPE, "write")),
+		"can_create_project": bool(frappe.has_permission(PROJECT_DOCTYPE, "create")),
+		"can_write_project": bool(frappe.has_permission(PROJECT_DOCTYPE, "write")),
+		"can_edit_settings": bool(frappe.has_permission(SETTINGS_DOCTYPE, "write")),
+		"default_authority": calc.DEFAULT_AUTHORITY,
 		"today": today(),
 		"bill_types": list(BILL_TYPES),
 		"authorities": list(calc.AUTHORITIES),
@@ -138,10 +147,6 @@ def get_context():
 		"file_types": list(ALLOWED_SANCTION_ORDER_EXTENSIONS),
 		"max_file_mb": min(cint((frappe.conf.get("max_file_size") or 25 * 1024 * 1024) / 1048576), 25),
 	}
-
-
-# The project of a bill is a "Site Project" (HSC Master Inhouse app); its name IS the project name (autoname: field:project_name).
-PROJECT_DOCTYPE = "Site Project"
 
 
 @frappe.whitelist()
@@ -153,31 +158,199 @@ def get_dashboard(from_date=None, to_date=None):
 	return dashboard.build(from_date or None, to_date or None, with_letters=bool(_escrow_context()))
 
 
-@frappe.whitelist()
-def projects(txt=None):
-	"""Site Projects to pick from."""
-	txt = cstr(txt).strip()
-	or_filters = [["name", "like", f"%{txt}%"]] if txt else None
-	kwargs = dict(
-		fields=["name"],
-		or_filters=or_filters,
-		order_by="name asc",
-		limit_page_length=30,
-	)
+def _get_list(doctype, **kwargs):
+	"""frappe.get_list, but a user who may create bills still gets to see the masters the form needs
+	(projects, customers, cost centers) even when their roles have no read right on them."""
 	try:
-		rows = frappe.get_list(PROJECT_DOCTYPE, **kwargs)
+		return frappe.get_list(doctype, **kwargs)
 	except frappe.PermissionError:
-		# a user who may create bills must still be able to name the project of the bill,
-		# even when their roles have no read right on Site Project
 		if not frappe.has_permission(DOCTYPE, "create"):
 			raise
-		rows = frappe.get_all(PROJECT_DOCTYPE, **kwargs)
-	return [{"name": r.name, "project_name": r.name} for r in rows]
+		return frappe.get_all(doctype, **kwargs)
+
+
+@frappe.whitelist()
+def projects(txt=None):
+	"""The Bill Tracker's own projects to pick from (enabled ones only)."""
+	txt = cstr(txt).strip()
+	rows = _get_list(
+		PROJECT_DOCTYPE,
+		fields=["name", "project_name", "default_department", "customer"],
+		filters={"disabled": 0},
+		or_filters=[["name", "like", f"%{txt}%"]] if txt else None,
+		order_by="project_name asc",
+		limit_page_length=30,
+	)
+	return [dict(r) for r in rows]
 
 
 def _project_names(project_ids):
-	"""id -> display name. A Site Project's id is its name, so nothing needs to be looked up."""
+	"""id -> display name. A Bill Project's id is its name, so nothing needs to be looked up."""
 	return {p: p for p in project_ids or [] if p}
+
+
+PROJECT_EXTRA_FIELDS = ("default_department", "customer", "cost_center")
+
+
+def _project_dict(doc):
+	out = {f: doc.get(f) for f in ("project_name", *PROJECT_EXTRA_FIELDS)}
+	out["name"] = doc.name
+	out["disabled"] = cint(doc.disabled)
+	out["bills"] = cint(frappe.db.count(DOCTYPE, {"project": doc.name}))
+	return out
+
+
+@frappe.whitelist()
+def list_projects(search=None):
+	"""Every project (also the disabled ones) with its number of bills - the Settings tab."""
+	frappe.has_permission(PROJECT_DOCTYPE, "read", throw=True)
+	search = cstr(search).strip()
+	rows = frappe.get_list(
+		PROJECT_DOCTYPE,
+		fields=["name", "project_name", "default_department", "customer", "cost_center", "disabled"],
+		or_filters=[["name", "like", f"%{search}%"], ["customer", "like", f"%{search}%"]] if search else None,
+		order_by="disabled asc, project_name asc",
+		limit_page_length=500,
+	)
+	counts = {
+		r.project: cint(r.n)
+		for r in frappe.get_all(DOCTYPE, fields=["project", {"COUNT": "*", "as": "n"}], group_by="project")
+	}
+	out = []
+	for r in rows:
+		row = dict(r)
+		row["disabled"] = cint(r.disabled)
+		row["bills"] = counts.get(r.name, 0)
+		out.append(row)
+	return {"rows": out}
+
+
+@frappe.whitelist(methods=["POST"])
+def save_project(data):
+	"""Add a project (no name) or change one (name). Projects are never deleted here - disable them instead."""
+	data = _parse(data)
+	name = cstr(data.get("name")).strip()
+	if name:
+		doc = frappe.get_doc(PROJECT_DOCTYPE, name)
+		doc.check_permission("write")
+	else:
+		frappe.has_permission(PROJECT_DOCTYPE, "create", throw=True)
+		doc = frappe.new_doc(PROJECT_DOCTYPE)
+		doc.project_name = cstr(data.get("project_name")).strip()
+		doc.disabled = 0
+	for field in PROJECT_EXTRA_FIELDS:
+		if field in data:
+			doc.set(field, cstr(data.get(field)).strip() or None)
+	if name and "disabled" in data:
+		doc.disabled = cint(data.get("disabled"))
+	doc.save()
+	return _project_dict(doc)
+
+
+@frappe.whitelist()
+def lookup(kind, txt=None):
+	"""Typeahead of the project form: customers and cost centres."""
+	txt = cstr(txt).strip()
+	if kind == "customer":
+		rows = _get_list(
+			"Customer",
+			fields=["name", "customer_name"],
+			filters={"disabled": 0},
+			or_filters=[["name", "like", f"%{txt}%"], ["customer_name", "like", f"%{txt}%"]] if txt else None,
+			order_by="customer_name asc",
+			limit_page_length=20,
+		)
+		return [{"name": r.name, "label": r.customer_name or r.name} for r in rows]
+	if kind == "cost_center":
+		company = invoice.get_settings().company
+		rows = _get_list(
+			"Cost Center",
+			fields=["name"],
+			filters={"is_group": 0, **({"company": company} if company else {})},
+			or_filters=[["name", "like", f"%{txt}%"]] if txt else None,
+			order_by="name asc",
+			limit_page_length=20,
+		)
+		return [{"name": r.name, "label": r.name} for r in rows]
+	frappe.throw(_("Unknown lookup."))
+
+
+SETTINGS_FIELDS = (
+	"auto_create_invoice",
+	"company",
+	"item_code",
+	"taxes_in_state",
+	"taxes_out_state",
+	"cost_center",
+	"posting_days_before",
+	"holiday_direction",
+	"holiday_list",
+)
+HOLIDAY_DIRECTIONS = ("Previous working day", "Next working day")
+
+
+@frappe.whitelist()
+def get_settings():
+	"""The draft Sales Invoice defaults + the choices for them."""
+	frappe.has_permission(SETTINGS_DOCTYPE, "read", throw=True)
+	cfg = invoice.get_settings()
+	out = {f: cfg.get(f) or "" for f in SETTINGS_FIELDS}
+	out["auto_create_invoice"] = cint(cfg.auto_create_invoice)
+	out["posting_days_before"] = invoice.posting_days_before(cfg)
+	out["holiday_direction"] = cfg.holiday_direction if cfg.holiday_direction in HOLIDAY_DIRECTIONS else HOLIDAY_DIRECTIONS[0]
+	company = cfg.company
+	company_filter = {"company": company} if company else {}
+	out["options"] = {
+		"companies": frappe.get_all("Company", pluck="name", order_by="name asc"),
+		"items": frappe.get_all(
+			"Item",
+			filters={"disabled": 0, "is_stock_item": 0, "is_sales_item": 1},
+			fields=["name", "item_name"],
+			order_by="name asc",
+			limit_page_length=200,
+		),
+		"templates": frappe.get_all(
+			"Sales Taxes and Charges Template",
+			filters={"disabled": 0, **company_filter},
+			pluck="name",
+			order_by="name asc",
+		),
+		"cost_centers": frappe.get_all(
+			"Cost Center",
+			filters={"is_group": 0, **company_filter},
+			pluck="name",
+			order_by="name asc",
+			limit_page_length=300,
+		),
+		"holiday_lists": frappe.get_all("Holiday List", pluck="name", order_by="name desc"),
+		"holiday_directions": list(HOLIDAY_DIRECTIONS),
+	}
+	out["can_edit"] = bool(frappe.has_permission(SETTINGS_DOCTYPE, "write"))
+	return out
+
+
+@frappe.whitelist(methods=["POST"])
+def save_settings(data):
+	data = _parse(data)
+	frappe.has_permission(SETTINGS_DOCTYPE, "write", throw=True)
+	cfg = frappe.get_doc(SETTINGS_DOCTYPE)
+	for field in SETTINGS_FIELDS:
+		if field not in data:
+			continue
+		if field == "auto_create_invoice":
+			cfg.set(field, cint(data.get(field)))
+		elif field == "posting_days_before":
+			days = cint(data.get(field))
+			if not 0 <= days <= 60:
+				frappe.throw(_("Days before the bill date must be between 0 and 60."))
+			cfg.set(field, days)
+		elif field == "holiday_direction":
+			value = cstr(data.get(field)).strip()
+			cfg.set(field, value if value in HOLIDAY_DIRECTIONS else HOLIDAY_DIRECTIONS[0])
+		else:
+			cfg.set(field, cstr(data.get(field)).strip() or None)
+	cfg.save()
+	return get_settings()
 
 
 @frappe.whitelist()
@@ -307,6 +480,10 @@ def _bill_dict(doc):
 	out["modified"] = cstr(doc.modified)
 	out["modified_by_name"] = get_fullname(doc.modified_by)
 	out["can_write"] = bool(doc.has_permission("write"))
+	out["invoice"] = invoice.info(doc)
+	result = doc.flags.get("invoice_result")
+	if result:
+		out["invoice_result"] = result
 	return out
 
 
@@ -324,6 +501,15 @@ def calculate(data):
 	return calc.compute(_parse(data))
 
 
+@frappe.whitelist(methods=["POST"])
+def create_invoice(name):
+	"""The "Create draft Sales Invoice" button: makes the draft when there is none (or refreshes the draft)."""
+	doc = frappe.get_doc(DOCTYPE, name)
+	doc.check_permission("write")
+	doc.flags.invoice_result = invoice.sync_for_bill(doc, force=True)
+	return _bill_dict(doc)
+
+
 def _clean_rows(rows, keys):
 	out = []
 	for row in rows or []:
@@ -332,7 +518,7 @@ def _clean_rows(rows, keys):
 		clean = {}
 		for k in keys:
 			value = row.get(k)
-			clean[k] = cstr(value).strip() if k == "particular" else flt(value)
+			clean[k] = cstr(value).strip() if k == "particular" else cint(value) if k in CHECK_FIELDS else flt(value)
 		out.append(clean)
 	return out
 
@@ -360,6 +546,8 @@ def save_bill(data):
 			doc.set(field, _bill_type(value))
 		elif field in TEXT_FIELDS:
 			doc.set(field, cstr(value).strip())
+		elif field in CHECK_FIELDS:
+			doc.set(field, cint(value))
 		else:
 			doc.set(field, flt(value))
 

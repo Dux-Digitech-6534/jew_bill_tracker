@@ -32,12 +32,31 @@ class ProjectBill(Document):
 		self.sanction_no = cstr(self.sanction_no).strip()
 		self.package_no = cstr(self.package_no).strip()
 
+		self.validate_project()
 		self.validate_amounts()
 		self.validate_calculation_inputs()
 		self.calculate()
 		self.validate_net_payable()
 		self.validate_sanction_order()
 		self.validate_duplicate()
+
+	def on_update(self):
+		# the draft Sales Invoice that goes with the bill (see invoice.py); never blocks the save
+		from bill_tracker.bill_tracker import invoice
+
+		invoice.on_bill_saved(self)
+
+	def validate_project(self):
+		"""New bills (or a changed project) need an enabled Bill Project; old bills of a disabled one stay editable."""
+		if not self.project or not (self.is_new() or self.has_value_changed("project")):
+			return
+		if frappe.db.get_value("Bill Project", self.project, "disabled"):
+			frappe.throw(
+				_("Project {0} is disabled. Enable it in the Settings tab to add bills to it.").format(
+					frappe.bold(self.project)
+				),
+				title=_("Disabled Project"),
+			)
 
 	def validate_amounts(self):
 		if flt(self.bill_amount) <= 0:

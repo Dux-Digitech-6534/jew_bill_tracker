@@ -1,0 +1,147 @@
+{
+ "actions": [],
+ "creation": "2026-11-13 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_invoice",
+  "auto_create_invoice",
+  "company",
+  "item_code",
+  "column_break_inv",
+  "taxes_in_state",
+  "taxes_out_state",
+  "cost_center",
+  "section_posting",
+  "posting_days_before",
+  "holiday_direction",
+  "column_break_post",
+  "holiday_list"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_invoice",
+   "fieldtype": "Section Break",
+   "label": "Draft Sales Invoice from a bill"
+  },
+  {
+   "default": "1",
+   "description": "Saving a sanction order bill makes a DRAFT Sales Invoice for it (never submitted by the Bill Tracker).",
+   "fieldname": "auto_create_invoice",
+   "fieldtype": "Check",
+   "label": "Create a draft Sales Invoice when a bill is saved"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "description": "The service item every invoice line uses (e.g. Works Contract Receipt (18%)).",
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Invoice Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "column_break_inv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Used when the customer is in the same state as the company.",
+   "fieldname": "taxes_in_state",
+   "fieldtype": "Link",
+   "label": "GST Template (same state)",
+   "options": "Sales Taxes and Charges Template"
+  },
+  {
+   "description": "Used when the customer is in another state.",
+   "fieldname": "taxes_out_state",
+   "fieldtype": "Link",
+   "label": "GST Template (other state)",
+   "options": "Sales Taxes and Charges Template"
+  },
+  {
+   "description": "Used when the project has none of its own.",
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Default Cost Center",
+   "options": "Cost Center"
+  },
+  {
+   "fieldname": "section_posting",
+   "fieldtype": "Section Break",
+   "label": "Posting date of the draft Sales Invoice"
+  },
+  {
+   "default": "2",
+   "description": "The draft is posted this many days before the bill date.",
+   "fieldname": "posting_days_before",
+   "fieldtype": "Int",
+   "label": "Days Before the Bill Date"
+  },
+  {
+   "default": "Previous working day",
+   "description": "Used when that day is a Sunday or a holiday.",
+   "fieldname": "holiday_direction",
+   "fieldtype": "Select",
+   "label": "Then Use the",
+   "options": "Previous working day\nNext working day"
+  },
+  {
+   "fieldname": "column_break_post",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Empty = the company's default holiday list. Sundays always count as holidays.",
+   "fieldname": "holiday_list",
+   "fieldtype": "Link",
+   "label": "Holiday List",
+   "options": "Holiday List"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-13 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Bill Tracker",
+ "name": "Bill Tracker Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Accounts Manager",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Accounts User"
+  },
+  {
+   "read": 1,
+   "role": "Projects Manager"
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "role": "Bill Tracker User",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -14,7 +14,7 @@ const css = read("bt_ui.css");
 if (css.includes("`") || css.includes("${")) throw new Error("bt_ui.css must not contain backticks or ${");
 const img = JSON.stringify({ mark: uri("mark.png"), markW: uri("mark-white.png") });
 
-let core = ["01_util.js", "02_app.js", "03_form.js", "03b_dashboard.js", "04_boot.js"].map(read).join("\n");
+let core = ["01_util.js", "02_app.js", "03_form.js", "03b_dashboard.js", "03c_settings.js", "04_boot.js"].map(read).join("\n");
 core = core.replace("/*__CSS__*/''", () => "`" + css + "`").replace("/*__IMG__*/{}", () => img);
 if (core.includes("/*__")) throw new Error("placeholder left in core");
 

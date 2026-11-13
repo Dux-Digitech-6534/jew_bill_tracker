@@ -7,7 +7,8 @@
  "field_order": [
   "particular",
   "rate",
-  "amount"
+  "amount",
+  "amount_manual"
  ],
  "fields": [
   {
@@ -29,13 +30,19 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Amount"
+  },
+  {
+   "description": "Tick when the Amount was typed over the one calculated from the Rate.",
+   "fieldname": "amount_manual",
+   "fieldtype": "Check",
+   "label": "Amount typed by hand"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-11-12 15:30:00.000000",
+ "modified": "2026-11-13 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Bill Tracker",
  "name": "Project Bill Adjustment",

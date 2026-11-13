@@ -18,14 +18,15 @@ class App {
 			detail: { name: '', data: null, error: '', preview: false },
 			form: null,
 			calc: null,
-			section: null, // 'dashboard' | 'bills' | 'letters' (the Fund transfer letters screen of the jv_escrow app, when installed)
+			section: null, // 'dashboard' | 'bills' | 'letters' (the Fund transfer letters screen of the jv_escrow app, when installed) | 'settings'
+			settings: { loaded: false, loading: false, error: '', projects: [], search: '', cfg: null },
 			dash: { period: 'all', from: '', to: '', data: null, loading: false, error: '', views: {} },
 		};
 		this.letters = null;
 		this.billsReady = false;
 		this.dashReady = false;
 		this.stack = ['list'];
-		this.reqs = { list: 0, detail: 0, calc: 0, pick: 0, dash: 0 };
+		this.reqs = { list: 0, detail: 0, calc: 0, pick: 0, dash: 0, settings: 0 };
 		this.loadListSoon = debounce(() => this.loadList(true), 320);
 		this.bind();
 		this.initDash();
@@ -51,6 +52,7 @@ class App {
 			<div class="dash" data-el="dash" hidden></div>
 			<div data-el="view"><div class="loading"><span class="spin"></span> Loading...</div></div>
 			<div data-el="letters" hidden></div>
+			<div class="settings" data-el="settings" hidden></div>
 		</div>
 		<div class="tip" data-el="tip" role="tooltip" hidden><b data-t="v"></b><span data-t="l"></span><span data-t="s"></span></div>
 		<div class="toast" data-el="toast"></div>
@@ -187,15 +189,17 @@ class App {
 		el.innerHTML = `<div class="seg" role="tablist" aria-label="Sections">
 			<button type="button" role="tab" data-act="section" data-v="dashboard" aria-pressed="${s === 'dashboard'}">${ic('chart', 15)} Dashboard</button>
 			<button type="button" role="tab" data-act="section" data-v="bills" aria-pressed="${s === 'bills'}">${ic('receipt', 15)} Sanction order bills</button>
-			${esc_ ? `<button type="button" role="tab" data-act="section" data-v="letters" aria-pressed="${s === 'letters'}">${ic('file', 15)} ${esc(esc_.label || 'Fund transfer letters')}</button>` : ''}</div>`;
+			${esc_ ? `<button type="button" role="tab" data-act="section" data-v="letters" aria-pressed="${s === 'letters'}">${ic('file', 15)} ${esc(esc_.label || 'Fund transfer letters')}</button>` : ''}
+				<button type="button" role="tab" data-act="section" data-v="settings" aria-pressed="${s === 'settings'}">${ic('sliders', 15)} Settings</button></div>`;
 	}
 
-	/** /desk/bill-tracker opens the dashboard; /desk/bill-tracker/bills and /letters open those sections. */
+	/** /desk/bill-tracker opens the dashboard; /desk/bill-tracker/bills, /letters and /settings open those sections. */
 	requestedSection() {
 		const r = window.frappe && frappe.get_route && frappe.get_route();
 		const want = this.mode === 'desk' && r ? r[1] : '';
 		if (want === 'letters' && this.st.ctx.escrow) return 'letters';
 		if (want === 'bills') return 'bills';
+		if (want === 'settings') return 'settings';
 		return 'dashboard';
 	}
 
@@ -213,10 +217,12 @@ class App {
 		this.$('[data-el=dash]').hidden = name !== 'dashboard';
 		this.$('[data-el=view]').hidden = name !== 'bills';
 		this.$('[data-el=letters]').hidden = name !== 'letters';
+		this.$('[data-el=settings]').hidden = name !== 'settings';
 		this.showAlert('');
 		this.setActs();
 		if (name === 'dashboard') this.showDashboard();
 		else if (name === 'letters') await this.showLetters();
+		else if (name === 'settings') this.showSettings();
 		else this.ensureBills();
 	}
 
@@ -261,7 +267,7 @@ class App {
 	}
 
 	errorCard(msg, retry) {
-		const act = retry === 'letters' ? 'retry-letters' : retry === 'dash' ? 'dash-retry' : 'retry';
+		const act = retry === 'letters' ? 'retry-letters' : retry === 'dash' ? 'dash-retry' : retry === 'settings' ? 'st-reload' : 'retry';
 		return `<div class="card"><span class="accent"></span><div class="empty"><span class="e-ic" style="background:var(--err-bg);color:var(--err)">${ic('alert', 22)}</span>
 			<b>Could not open</b>${esc(msg)}${retry ? `<div style="margin-top:14px"><button class="btn btn-secondary" data-act="${act}">${ic('refresh', 15)} Try again</button></div>` : ''}</div></div>`;
 	}
@@ -270,6 +276,7 @@ class App {
 		const c = this.st.ctx || {};
 		const el = this.$('[data-el=acts]');
 		if (this.st.section === 'dashboard') { el.innerHTML = `<button class="btn btn-ghost" data-act="dash-retry" title="Refresh">${ic('refresh', 16)}</button>`; return; }
+		if (this.st.section === 'settings') { el.innerHTML = `<button class="btn btn-ghost" data-act="st-reload" title="Refresh">${ic('refresh', 16)}</button>`; return; }
 		if (this.st.view !== 'list' || this.st.section !== 'bills') { el.innerHTML = ''; return; }
 		el.innerHTML = `<button class="btn btn-ghost" data-act="refresh" title="Refresh">${ic('refresh', 16)}</button>`;
 	}
@@ -327,6 +334,8 @@ class App {
 		const r = window.frappe && frappe.get_route && frappe.get_route();
 		if (this.mode === 'desk' && r && r[1] === 'letters' && this.st.ctx.escrow && this.st.section !== 'letters') { this.setSection('letters'); return; }
 		if (this.mode === 'desk' && r && r[1] === 'bills' && this.st.section !== 'bills') { this.setSection('bills'); return; }
+		if (this.mode === 'desk' && r && r[1] === 'settings' && this.st.section !== 'settings') { this.setSection('settings'); return; }
+		if (this.st.section === 'settings') { this.loadSettings(); return; }
 		if (this.st.section === 'dashboard') { this.loadDashboard(); return; }
 		if (this.st.section === 'letters') { if (this.letters) this.letters.on_show(); return; }
 		if (this.st.view === 'list') this.loadList(true);
@@ -498,11 +507,13 @@ class App {
 				${file.is_pdf && this.mode === 'desk' ? `<button class="btn btn-ghost btn-sm" data-act="preview-toggle">${d.preview ? 'Hide preview' : 'Preview'}</button>` : ''}
 				<button class="btn btn-secondary btn-sm" data-act="file-open">${ic('download', 14)} Open</button></div>${prev}</div>`;
 		}
+		const dbt = (b.work_lines || []).reduce((s, r) => s + (r.contract_amount || 0), 0);
+		const amt = (b.work_lines || []).reduce((s, r) => s + (r.amount || 0), 0);
 		const lines = (b.work_lines || []).length
-			? `<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Work-wise breakup</h2><div class="sub">ULB / particular as written in the order</div></div></div>
-				<div class="table-wrap"><table class="tbl"><thead><tr><th>ULB / Particular</th><th class="r">Contract amount</th><th class="r">Bill amount</th></tr></thead><tbody>
-				${b.work_lines.map((r) => `<tr><td>${esc(r.particular)}</td><td class="amt">${r.contract_amount ? rs(r.contract_amount) : '-'}</td><td class="amt">${rs(r.amount)}</td></tr>`).join('')}
-				</tbody><tfoot><tr><td><b>Total</b></td><td class="amt">${rs(b.work_lines.reduce((s, r) => s + (r.contract_amount || 0), 0))}</td><td class="amt cy">${rs(b.work_lines.reduce((s, r) => s + (r.amount || 0), 0))}</td></tr></tfoot></table></div></div>` : '';
+			? `<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Work-wise breakup</h2><div class="sub">Design Build Amount = full value of the ULB · Amount = billed in this bill · Difference = still left</div></div></div>
+				<div class="table-wrap"><table class="tbl"><thead><tr><th>ULB name</th><th class="r">Design Build Amount</th><th class="r">Amount</th><th class="r">Difference</th></tr></thead><tbody>
+				${b.work_lines.map((r) => `<tr><td>${esc(r.particular)}</td><td class="amt">${r.contract_amount ? rs(r.contract_amount) : '-'}</td><td class="amt">${rs(r.amount)}</td><td class="amt">${r.contract_amount ? rs(r.contract_amount - r.amount) : '-'}</td></tr>`).join('')}
+				</tbody><tfoot><tr><td><b>Total</b></td><td class="amt">${rs(dbt)}</td><td class="amt cy">${rs(amt)}</td><td class="amt">${dbt ? rs(dbt - amt) : '-'}</td></tr></tfoot></table></div></div>` : '';
 		const progress = b.contract_value || b.work_done_till_date || b.previous_payments
 			? `<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Contract &amp; progress</h2></div></div><div class="card-body"><dl class="kv">
 				${kv('Contract value', b.contract_value ? rs(b.contract_value) : '', 'mono')}${kv('Work done till date', b.work_done_till_date ? rs(b.work_done_till_date) : '', 'mono')}
@@ -526,10 +537,48 @@ class App {
 					${kv('Bill no', esc(b.bill_no), 'mono')}${kv('Bill date', esc(dmy(b.bill_date)), 'mono')}${kv('Bill amount', rs(b.bill_amount), 'mono')}</dl></div></div>
 				<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Sanction order</h2></div></div><div class="card-body" style="display:flex;flex-direction:column;gap:18px"><dl class="kv">
 					${kv('Department', esc(b.sanction_authority))}${kv('Order no', esc(b.sanction_no), 'mono')}${kv('Order date', esc(dmy(b.sanction_date)), 'mono')}
-					${kv('Package / agreement', esc(b.package_no), 'mono')}${kv('Sanction amount', b.sanction_amount ? rs(b.sanction_amount) : '', 'mono')}</dl>${fileCard}</div></div>
+					${kv('Package no', esc(b.package_no), 'mono')}${kv('Sanction amount', b.sanction_amount ? rs(b.sanction_amount) : '', 'mono')}</dl>${fileCard}</div></div>
 				${lines}${progress}${remarks}
 			</div><div class="d-col"><div class="card"><span class="accent"></span><div class="card-head"><div><h2>Payment calculation</h2><div class="sub">As worked out from the order</div></div></div>
-				${this.summaryHTML(b, true)}${this.checkHTML(b)}</div></div></div>`;
+				${this.summaryHTML(b, true)}${this.checkHTML(b)}</div>
+					${this.invoiceCard(b)}</div></div>`;
+	}
+
+	/** The draft Sales Invoice of this bill: its state, a link to open it, or the button that makes it. */
+	invoiceCard(b) {
+		const d = this.st.detail;
+		const inv = b.invoice;
+		const note = d.note ? `<div class="alert ${d.noteKind === 'warn' ? 'warn' : 'info'}" style="margin-bottom:12px">${ic('alert', 16)}<div>${esc(d.note)}</div></div>` : '';
+		let body;
+		if (inv && inv.docstatus !== null && inv.docstatus !== undefined) {
+			const pill = inv.docstatus === 1 ? '<span class="pill ok"><span class="dot"></span>Submitted</span>' : inv.docstatus === 2 ? '<span class="pill err">Cancelled</span>' : '<span class="pill warn"><span class="dot"></span>Draft</span>';
+			const text = inv.docstatus === 0 ? 'A draft — nothing is posted yet. It follows this bill while it is a draft. Check it and submit it from the Sales Invoice screen.' : inv.docstatus === 1 ? 'Submitted. Changes to this bill no longer change the invoice.' : 'This invoice was cancelled.';
+			body = `<div class="inv-row"><div><div class="inv-no">${esc(inv.name)}</div><div class="inv-sub">${esc([dmy(inv.posting_date), inv.total ? 'Total ' + fmt(inv.total) : ''].filter(Boolean).join(' · '))}</div></div>${pill}</div>
+				<p class="inv-text">${text}</p>
+				<div class="inv-acts"><a class="btn btn-secondary" href="/desk/sales-invoice/${encodeURIComponent(inv.name)}" target="_blank" rel="noopener">${ic('external', 15)} Open Sales Invoice</a>${inv.docstatus === 2 && b.can_write ? `<button type="button" class="btn btn-ghost" data-act="inv-create">Make a new draft</button>` : ''}</div>`;
+		} else if (inv) {
+			body = `<p class="inv-text">The linked Sales Invoice <b>${esc(inv.name)}</b> no longer exists.</p>${b.can_write ? `<div class="inv-acts"><button type="button" class="btn btn-secondary" data-act="inv-create">Create draft Sales Invoice</button></div>` : ''}`;
+		} else {
+			body = `<p class="inv-text">No Sales Invoice yet. It is made as a <b>draft</b> when the bill is saved, once the project has its customer (Settings → Projects).</p>${b.can_write ? `<div class="inv-acts"><button type="button" class="btn btn-secondary" data-act="inv-create">Create draft Sales Invoice</button></div>` : ''}`;
+		}
+		return `<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Sales Invoice</h2><div class="sub">Made from this bill, as a draft</div></div></div><div class="card-body">${note}${body}</div></div>`;
+	}
+
+	async createInvoice() {
+		const d = this.st.detail;
+		if (!d || !d.name || d.busy) return;
+		d.busy = true;
+		try {
+			const b = await post('create_invoice', { name: d.name });
+			d.data = b;
+			d.note = '';
+			this.toast(`Draft Sales Invoice ${b.invoice ? b.invoice.name : ''} ready`.replace('  ', ' '));
+		} catch (e) {
+			d.note = e.message;
+			d.noteKind = 'warn';
+		}
+		d.busy = false;
+		if (this.st.view === 'detail') this.renderDetail();
 	}
 
 	/** Work value -> GST -> additions -> deductions -> net payable. `lines` lists every addition / deduction. */
@@ -543,17 +592,22 @@ class App {
 			h += row('SGST' + half, rs(c.sgst_amount), 'sub plus');
 			h += row('CGST' + half, rs(c.cgst_amount), 'sub plus');
 		}
-		h += row('Bill total <small>incl. GST</small>', rs(c.bill_total), 'strong line');
-		if (c.additions_total || (c.additions || []).length) {
-			h += row('Additions', '+ ' + rs(c.additions_total), 'plus');
-			if (lines) h += (c.additions || []).map((r) => row(esc(r.particular) + (r.rate ? ` <small>${rate(r.rate)}%</small>` : ''), rs(r.amount), 'sub plus')).join('');
+		// laid out like the order: Total / Add: lines / Gross Total / Less: lines + total / Net Amount Payable / in words
+		h += row('Total <small>incl. GST</small>', rs(c.bill_total), 'strong line');
+		const adds = c.additions || [];
+		if (adds.length) {
+			h += row('Add:', '', 'plus');
+			h += adds.map((r) => row(esc(r.particular) + (r.rate ? ` <small>${rate(r.rate)}%</small>` : ''), rs(r.amount), 'sub plus')).join('');
+			if (adds.length > 1) h += row('Total additions', '+ ' + rs(c.additions_total), 'plus');
 		}
-		h += row('Gross total', rs(c.gross_total), 'strong line');
-		if (c.deductions_total || (c.deductions || []).length) {
-			h += row('Deductions', '− ' + rs(c.deductions_total), 'minus');
-			if (lines) h += (c.deductions || []).map((r) => row(esc(r.particular) + (r.rate ? ` <small>${rate(r.rate)}%</small>` : ''), rs(r.amount), 'sub minus')).join('');
+		h += row('Gross Total', rs(c.gross_total), 'strong line');
+		const less = c.deductions || [];
+		if (less.length) {
+			h += row('Less:', '', 'minus');
+			h += less.map((r) => row(esc(r.particular) + (r.rate ? ` <small>${rate(r.rate)}%</small>` : ''), rs(r.amount), 'sub minus')).join('');
+			h += row('Total deductions', '− ' + rs(c.deductions_total), 'minus strong line');
 		}
-		h += `</div><div class="net"><div class="k">Net payable</div><div class="v">${rs(c.net_payable)}</div>${c.net_payable_words ? `<div class="w">${esc(c.net_payable_words)}</div>` : ''}</div>`;
+		h += `</div><div class="net"><div class="k">Net Amount Payable</div><div class="v">${rs(c.net_payable)}</div>${c.net_payable_words ? `<div class="w">${esc(c.net_payable_words)}</div>` : ''}</div>`;
 		return h;
 	}
 
@@ -594,6 +648,7 @@ class App {
 	act(a, t, e) {
 		const d = this.st.detail;
 		if (a.indexOf('dash-') === 0) { this.dashAct(a, t); return; }
+			if (a.indexOf('st-') === 0) { this.settingsAct(a, t); return; }
 		switch (a) {
 			case 'login': location.href = '/login?redirect-to=' + encodeURIComponent(location.pathname); break;
 			case 'alert-x': this.showAlert(''); break;
