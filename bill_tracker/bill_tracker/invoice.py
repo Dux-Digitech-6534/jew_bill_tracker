@@ -23,6 +23,11 @@ DRAFT, SUBMITTED, CANCELLED = 0, 1, 2
 STATUS_LABEL = {DRAFT: "Draft", SUBMITTED: "Submitted", CANCELLED: "Cancelled"}
 
 
+class InvoiceNotPossible(frappe.ValidationError):
+	"""A known, explainable reason why no invoice is made (no customer, nothing to invoice, settings missing).
+	The page shows the reason to the user; it is not a fault, so it is not written to the Error Log."""
+
+
 class _full_rights:
 	"""Make / refresh the draft invoice with full rights, whoever saves the bill.
 
@@ -84,9 +89,9 @@ def _settings_for(bill):
 	cfg = get_settings()
 	company = cfg.company or frappe.defaults.get_global_default("company")
 	if not company:
-		frappe.throw(_("Set the Company in the Settings tab of the Bill Tracker."))
+		frappe.throw(_("Set the Company in the Settings tab of the Bill Tracker."), exc=InvoiceNotPossible)
 	if not cfg.item_code:
-		frappe.throw(_("Set the Invoice Item in the Settings tab of the Bill Tracker."))
+		frappe.throw(_("Set the Invoice Item in the Settings tab of the Bill Tracker."), exc=InvoiceNotPossible)
 	return cfg, company
 
 
@@ -218,10 +223,11 @@ def _build(bill):
 		frappe.throw(
 			_("Project {0} has no Customer. Add it in the Settings tab (Projects), then use \"Create draft Sales Invoice\" on this bill.").format(
 				frappe.bold(bill.project)
-			)
+			),
+			exc=InvoiceNotPossible,
 		)
 	if not lines_of(bill):
-		frappe.throw(_("The work value of this bill is zero, so there is nothing to invoice."))
+		frappe.throw(_("The work value of this bill is zero, so there is nothing to invoice."), exc=InvoiceNotPossible)
 	cost_center = project.get("cost_center") or cfg.cost_center
 
 	si = frappe.new_doc(SALES_INVOICE)
@@ -242,7 +248,7 @@ def _sync(si, bill):
 	project = frappe.db.get_value("Bill Project", bill.project, ["customer", "cost_center"], as_dict=True) or {}
 	cost_center = project.get("cost_center") or cfg.cost_center or si.get("cost_center")
 	if not lines_of(bill):
-		frappe.throw(_("The work value of this bill is zero, so there is nothing to invoice."))
+		frappe.throw(_("The work value of this bill is zero, so there is nothing to invoice."), exc=InvoiceNotPossible)
 	_header(si, bill, si.customer, cost_center, cfg, company)
 	si.set("payment_schedule", [])  # rebuilt from the new dates and total on save
 	_set_items(si, bill, cfg, cost_center)
@@ -296,7 +302,8 @@ def sync_for_bill(bill, force=False):
 		reason = strip_html(cstr(e)).strip() or e.__class__.__name__
 		if force:
 			frappe.throw(reason, title=_("Sales Invoice"))
-		frappe.log_error(title="Bill Tracker: draft Sales Invoice not made", message=frappe.get_traceback())
+		if not isinstance(e, InvoiceNotPossible):  # an explainable reason is shown to the user; only real faults are logged
+			frappe.log_error(title="Bill Tracker: draft Sales Invoice not made", message=frappe.get_traceback())
 		result["action"] = "failed"
 		result["message"] = reason
 	return result

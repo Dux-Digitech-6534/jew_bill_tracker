@@ -667,12 +667,24 @@ Object.assign(App.prototype, {
 		this.scheduleCalc(0);
 	},
 
+	/** Where a standard line belongs: before the first row that the department's order prints after it (else at the end). */
+	slotFor(kind, particular) {
+		const order = (this.presets()[kind] || []).map((r) => normName(r.particular));
+		const mine = order.indexOf(normName(particular));
+		const rows = this.st.form.d[kind];
+		if (mine < 0) return rows.length;
+		const at = rows.findIndex((r) => { const p = order.indexOf(normName(r.particular)); return p > mine; });
+		return at < 0 ? rows.length : at;
+	},
+
 	addRow(kind, init) {
 		const f = this.st.form;
-		f.d[kind].push(Object.assign(newRow(), init || {}));
+		const row = Object.assign(newRow(), init || {});
+		const at = row.dflt ? this.slotFor(kind, row.particular) : f.d[kind].length;
+		f.d[kind].splice(at, 0, row);
 		this.markDirty();
 		this.renderTable(kind);
-		const i = f.d[kind].length - 1;
+		const i = at;
 		const target = this.$(`[data-t=${kind}][data-i="${i}"][data-k=${init && init.particular ? 'amount' : 'particular'}]`);
 		if (target && !target.readOnly) target.focus();
 	},
@@ -684,7 +696,7 @@ Object.assign(App.prototype, {
 		let n = 0;
 		(p.deductions || []).forEach((r) => {
 			if (have.has(normName(r.particular))) return;
-			f.d.deductions.push(Object.assign(newRow(), { particular: r.particular, rate: r.rate ? rate(r.rate) : '', auto: !!r.rate, dflt: true }));
+			f.d.deductions.splice(this.slotFor('deductions', r.particular), 0, Object.assign(newRow(), { particular: r.particular, rate: r.rate ? rate(r.rate) : '', auto: !!r.rate, dflt: true }));
 			n += 1;
 		});
 		if (!n) { if (!quiet) this.toast('Those deductions are already in the list.'); return; }
