@@ -494,7 +494,7 @@ class App {
 		if (!d.data) { this.$view.innerHTML = back + `<div class="loading"><span class="spin"></span> Opening the bill...</div>`; return; }
 		const b = d.data;
 		const code = String(b.bill_type || '').split(' - ')[0];
-		const kv = (k, v, cls) => `<div><dt>${k}</dt><dd class="${cls || ''}${v ? '' : ' muted'}">${v ? v : '-'}</dd></div>`;
+		const kv = (k, v, cls, wide) => `<div${wide ? ' class="wide"' : ''}><dt>${k}</dt><dd class="${cls || ''}${v ? '' : ' muted'}">${v ? v : '-'}</dd></div>`;
 		const file = b.file;
 		let fileCard = `<div class="empty" style="padding:18px">No sanction order attached.</div>`;
 		if (file) {
@@ -536,7 +536,7 @@ class App {
 					${kv('Project', esc(b.project_name) + (b.project !== b.project_name ? ` <span class="pill">${esc(b.project)}</span>` : ''))}${kv('Bill type', esc(b.bill_type))}
 					${kv('Bill no', esc(b.bill_no), 'mono')}${kv('Bill date', esc(dmy(b.bill_date)), 'mono')}${kv('Bill amount', rs(b.bill_amount), 'mono')}</dl></div></div>
 				<div class="card"><span class="accent"></span><div class="card-head"><div><h2>Sanction order</h2></div></div><div class="card-body" style="display:flex;flex-direction:column;gap:18px"><dl class="kv">
-					${kv('Department', esc(b.sanction_authority))}${kv('Order no', esc(b.sanction_no), 'mono')}${kv('Order date', esc(dmy(b.sanction_date)), 'mono')}
+					${kv('Contractor', esc(b.contractor), '', true)}${kv('Particular', esc(b.particular))}${kv('Department', esc(b.sanction_authority))}${kv('Order no', esc(b.sanction_no), 'mono')}${kv('Order date', esc(dmy(b.sanction_date)), 'mono')}
 					${kv('Package no', esc(b.package_no), 'mono')}${kv('Sanction amount', b.sanction_amount ? rs(b.sanction_amount) : '', 'mono')}</dl>${fileCard}</div></div>
 				${lines}${progress}${remarks}
 			</div><div class="d-col"><div class="card"><span class="accent"></span><div class="card-head"><div><h2>Payment calculation</h2><div class="sub">As worked out from the order</div></div></div>

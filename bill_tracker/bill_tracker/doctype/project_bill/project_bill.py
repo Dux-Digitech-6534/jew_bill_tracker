@@ -31,6 +31,8 @@ class ProjectBill(Document):
 		self.bill_no = cstr(self.bill_no).strip()
 		self.sanction_no = cstr(self.sanction_no).strip()
 		self.package_no = cstr(self.package_no).strip()
+		self.contractor = cstr(self.contractor).strip()
+		self.particular = cstr(self.particular).strip()
 
 		self.validate_project()
 		self.validate_amounts()

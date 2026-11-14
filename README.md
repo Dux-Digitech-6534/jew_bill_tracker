@@ -13,7 +13,10 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
   straight from the Project field of a bill; they are never deleted from the page, only disabled. Numbered `PB-.YYYY.-.####`, track changes on. A Project + Bill Type + Bill No combination can only be entered once.
   System Manager has full access; Projects Manager and Accounts User can read, write and create.
 - **Sanction order details and payment calculation** (MPUDCL "Sanction Order" and Jal Nigam "Summary of RA" style):
-  sanctioning department, order no / date, package no, sanction amount, an optional ULB-wise breakup
+  sanctioning department, **Contractor** (as written in the order, e.g. both firms of a JV) and **Particular** (the bill as the order
+  names it, e.g. "11th R.A. Bill"; both optional, both searchable in Saved bills). On a new bill the Contractor starts as the
+  Contractor of that project's latest bill and the Particular is suggested from the bill type and number ("11th R.A. Bill",
+  "2nd P.A. Bill"); typing over either keeps what was typed. Then order no / date, package no, sanction amount, an optional ULB-wise breakup
   (child table *Project Bill Work Line*: ULB name, **Design Build Amount** = full value of the ULB as printed in the order,
   **Amount** = what this bill claims for it, **Difference** = Design Build Amount - Amount, still left), GST, additions (e.g. release of withheld amount) and deductions
   (child table *Project Bill Adjustment*: Labour Cess, Retention, TDS ...), the net payable (also in words) and a cross-check

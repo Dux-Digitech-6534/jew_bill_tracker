@@ -52,6 +52,8 @@ SCALAR_FIELDS = (
 	"sanction_date",
 	"package_no",
 	"sanction_amount",
+	"contractor",
+	"particular",
 	"sanction_order",
 	"base_amount",
 	"base_manual",
@@ -73,6 +75,8 @@ TEXT_FIELDS = (
 	"sanction_authority",
 	"sanction_no",
 	"package_no",
+	"contractor",
+	"particular",
 	"sanction_order",
 	"remarks",
 )
@@ -181,7 +185,21 @@ def projects(txt=None):
 		order_by="project_name asc",
 		limit_page_length=30,
 	)
-	return [dict(r) for r in rows]
+	out = [dict(r) for r in rows]
+	# every bill of a project has the same contractor: the form starts a new bill with the latest one written
+	last = {}
+	if out:
+		for b in frappe.get_list(
+			DOCTYPE,
+			filters={"project": ["in", [r["name"] for r in out]], "contractor": ["!=", ""]},
+			fields=["project", "contractor"],
+			order_by="bill_date desc, creation desc",
+			limit_page_length=0,
+		):
+			last.setdefault(b.project, b.contractor)
+	for r in out:
+		r["last_contractor"] = last.get(r["name"], "")
+	return out
 
 
 def _project_names(project_ids):
@@ -387,6 +405,8 @@ def list_bills(
 			[DOCTYPE, "bill_no", "like", like],
 			[DOCTYPE, "sanction_no", "like", like],
 			[DOCTYPE, "package_no", "like", like],
+			[DOCTYPE, "contractor", "like", like],
+			[DOCTYPE, "particular", "like", like],
 			[DOCTYPE, "project", "like", like],
 			[DOCTYPE, "name", "like", like],
 		]

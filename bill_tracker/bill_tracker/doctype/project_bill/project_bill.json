@@ -19,6 +19,8 @@
   "column_break_sanction",
   "package_no",
   "sanction_amount",
+  "contractor",
+  "particular",
   "sanction_order",
   "work_section",
   "work_lines",
@@ -139,6 +141,18 @@
    "fieldname": "sanction_amount",
    "fieldtype": "Currency",
    "label": "Sanction Amount"
+  },
+  {
+   "description": "As written in the order (for a JV, both firms).",
+   "fieldname": "contractor",
+   "fieldtype": "Small Text",
+   "label": "Contractor"
+  },
+  {
+   "description": "The bill as the order names it, e.g. 11th R.A. Bill.",
+   "fieldname": "particular",
+   "fieldtype": "Data",
+   "label": "Particular"
   },
   {
    "fieldname": "sanction_order",
