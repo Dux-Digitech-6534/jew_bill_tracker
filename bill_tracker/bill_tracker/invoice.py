@@ -204,6 +204,35 @@ def _set_taxes(si, cfg):
 		si.append("taxes", row)
 
 
+ROUND_DESC = "Rounding difference (as per sanction order)"
+
+
+def _match_total(si, bill, company, cost_center):
+	"""Make the invoice total equal the bill total.
+
+	The sanction order rounds SGST / CGST to whole rupees, the GST template works to the paisa, so the two can differ by
+	less than a rupee. Like the hand-made invoices (SINV-26-00013), the difference goes on one "Actual" line of the
+	company's round-off account. Only a difference of up to Rs 1 is bridged - anything bigger is left visible.
+	"""
+	si.set("taxes", [t for t in si.get("taxes") if cstr(t.description) != ROUND_DESC])  # our row of an earlier pass
+	si.run_method("calculate_taxes_and_totals")
+	diff = round(flt(bill.bill_total) - flt(si.grand_total), 2)
+	account = frappe.db.get_value("Company", company, "round_off_account")
+	if not diff or abs(diff) > 1.0 or not account:
+		return
+	si.append(
+		"taxes",
+		{
+			"charge_type": "Actual",
+			"account_head": account,
+			"description": ROUND_DESC,
+			"tax_amount": diff,
+			"cost_center": cost_center or frappe.db.get_value("Company", company, "round_off_cost_center"),
+		},
+	)
+	si.run_method("calculate_taxes_and_totals")
+
+
 def _header(si, bill, customer, cost_center, cfg, company):
 	si.posting_date = posting_date_for(bill, cfg, company)
 	si.set_posting_time = 1
@@ -237,7 +266,7 @@ def _build(bill):
 	_set_items(si, bill, cfg, cost_center)
 	si.run_method("set_missing_values")
 	_set_taxes(si, cfg)
-	si.run_method("calculate_taxes_and_totals")
+	_match_total(si, bill, company, cost_center)
 	si.insert(ignore_permissions=True)
 	return si
 
@@ -255,7 +284,7 @@ def _sync(si, bill):
 	si.run_method("set_missing_values")
 	if not si.get("taxes"):
 		_set_taxes(si, cfg)
-	si.run_method("calculate_taxes_and_totals")
+	_match_total(si, bill, company, cost_center)
 	si.save(ignore_permissions=True)
 	return si
 

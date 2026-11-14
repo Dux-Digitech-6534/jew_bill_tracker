@@ -36,7 +36,10 @@ Built for Frappe / ERPNext v16 (Jain Engineering Works, `jewipl`).
   other-state template), PO ref and remarks carry the bill. **Posting date = bill date minus 2 days**; if that day is a
   Sunday or a day of the holiday list (company default or the one in Settings) the previous working day is used (or the
   next one, never later than the day before the bill date - Settings: days, direction, holiday list). With a typed-over
-  work value the invoice has one line equal to it. It is **never submitted** by the
+  work value the invoice has one line equal to it. The GST template works to the paisa, the order to the whole rupee, so
+  a difference of up to Rs 1 goes on one "Actual" line of the company's round-off account ("Rounding difference (as per
+  sanction order)", like the hand-made invoices): the invoice total then equals the bill total. A bigger difference (e.g. GST
+  typed far from the template) is not hidden. It is **never submitted** by the
   Bill Tracker. While it is a draft it follows edits of the bill; a submitted / cancelled invoice is left alone; there is
   never a second invoice for a bill. A problem (e.g. the project has no customer) never loses the bill - the page shows
   the reason and a *Create draft Sales Invoice* button. The link is stored in `Project Bill.sales_invoice` (a Data field,
